@@ -2,17 +2,6 @@
 
 <div align="center">
 
-[![Minecraft](https://img.shields.io/badge/Minecraft
-
----
-
-# Can you make The readme file For Crossroads into a file That I can download please?
-
-```markdown
-# 🛤️ Crossroads 🛤️
-
-<div align="center">
-
 [![Minecraft](https://img.shields.io/badge/Minecraft-Plugin-00C853?style=for-the-badge&logo=minecraft&logoColor=white)](https://minecraft.net)
 [![Legacy+Modern](https://img.shields.io/badge/Legacy%20%26%20Modern-1.16.5%2B-2196F3?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io)
 [![Java](https://img.shields.io/badge/Java-16%2B-F57C00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org)
