@@ -1,3 +1,4 @@
+<img width="1536" height="1024" alt="CROSSROADS_ a Minecraft adventure unfolds" src="https://github.com/user-attachments/assets/1cf695f3-4365-49a8-b767-47a1029fefe5" />
 # 🛤️ Crossroads 🛤️
 
 <div align="center">
