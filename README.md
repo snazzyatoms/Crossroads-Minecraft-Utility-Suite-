@@ -1,4 +1,6 @@
-<img width="1536" height="1024" alt="CROSSROADS_ a Minecraft adventure unfolds" src="https://github.com/user-attachments/assets/1cf695f3-4365-49a8-b767-47a1029fefe5" />
+```markdown
+<img width="1536" height="1024" alt="CROSSROADS - a Minecraft adventure unfolds" src="https://github.com/user-attachments/assets/1cf695f3-4365-49a8-b767-47a1029fefe5" />
+
 # 🛤️ Crossroads 🛤️
 
 <div align="center">
@@ -9,9 +11,8 @@
 [![MIT](https://img.shields.io/badge/License-MIT-9C27B0?style=for-the-badge&logo=mit&logoColor=white)](LICENSE)
 [![API](https://img.shields.io/badge/API-SPI%20Ready-4CAF50?style=for-the-badge&logo=codeigniter&logoColor=white)](/api)
 
-<br><br>
+<br>
 
-![Banner](https://via.placeholder.com/1200x200/1e3a8a/ffffff?text=Crossroads+-+Where+Servers+Thrive)
 > **The ultimate Minecraft utility suite — homes, warps, chat, moderation & backups in one trusted plugin.**
 
 </div>
@@ -22,9 +23,10 @@
 
 **Crossroads replaces Essentials** with a modern, modular utility platform built for **both legacy and modern servers**.
 
-Unlike bloated old plugins, Crossroads is:
-- **🏠 Player-friendly** — intuitive homes, warps, spawn
-- **🛡️ Admin-trusted** — moderation, backups, safety first  
+Unlike bloated old plugins, Crossroads delivers:
+
+- **🏠 Player-friendly** — intuitive homes, warps, spawn  
+- **🛡️ Admin-trusted** — moderation, backups, safety first
 - **⚙️ Server-owner focused** — per-world configs, feature toggles
 - **🔌 Developer-ready** — public API + SPI integrations
 - **💾 Data-safe** — automatic backups, portable storage
@@ -47,25 +49,22 @@ Unlike bloated old plugins, Crossroads is:
 
 ## ⌨️ Essential Commands
 
-```
-
-🏠 /home [name]     /sethome [name]     /delhome
-🧭 /warp [name]     /setwarp [name]     /delwarp
-🌍 /spawn           /setspawn           /back
-💬 /msg <player>    /reply              /ignore <player>
-🛡️ /fly             /vanish             /staffmode
-🎁 /kit             /rules
-⚙️ /crossroads      (admin menu)
-
-```
+| Category | Player Commands | Admin Commands |
+|----------|----------------|---------------|
+| **🏠 Homes** | `/home [name]`, `/sethome [name]`, `/delhome` | ✅ |
+| **🧭 Warps** | `/warp [name]`, `/setwarp [name]`, `/delwarp` | ✅ |
+| **🌍 Spawn** | `/spawn`, `/setspawn`, `/back` | ✅ |
+| **💬 Chat** | `/msg <player>`, `/reply`, `/ignore <player>` | ✅ |
+| **🛡️ Staff** | `/fly`, `/vanish`, `/staffmode` | ✅ |
+| **🎁 Kits** | `/kit`, `/rules` | ✅ |
+| **⚙️ Admin** | `/crossroads` | ✅ |
 
 **Clean permissions:**
 ```
 
-crossroads.home        crossroads.warp
-crossroads.spawn       crossroads.back
-crossroads.msg         crossroads.kit
-crossroads.staff       crossroads.admin
+crossroads.home     crossroads.warp     crossroads.spawn
+crossroads.back     crossroads.msg      crossroads.kit
+crossroads.staff    crossroads.admin
 
 ```
 
@@ -83,17 +82,15 @@ crossroads.staff       crossroads.admin
 
 ## 💾 Smart Storage
 
-```
-
-📁 YAML     → Small servers
-🗄️  SQLite  → Medium servers
-☁️  MySQL   → Large networks
-
-```
+| Type | Best For |
+|------|----------|
+| 📁 **YAML** | Small servers |
+| 🗄️ **SQLite** | Medium servers |
+| ☁️ **MySQL** | Large networks |
 
 **Built-in backup system:**
 - Auto-backups on restart
-- Manual export/restore  
+- Manual export/restore
 - Data migration tools
 - Integrity checks
 
@@ -104,11 +101,11 @@ crossroads.staff       crossroads.admin
 Crossroads exposes a **clean public API** for seamless integration:
 
 ```java
-// Listen for home events
 @EventHandler
-public void onHomeTeleport(HomeTeleportEvent event) { ... }
+public void onHomeTeleport(HomeTeleportEvent event) { 
+    // Custom home logic
+}
 
-// Access player data safely
 PlayerData data = CrossroadsAPI.getPlayerData(player);
 ```
 
@@ -120,12 +117,12 @@ PlayerData data = CrossroadsAPI.getPlayerData(player);
 
 | Feature | EssentialsX | Crossroads |
 | :-- | :-- | :-- |
-| **Code Quality** | Legacy | Modern |
-| **Version Support** | Modern only | Legacy + Modern |
-| **Storage Safety** | Basic | Full backups |
-| **Developer API** | Limited | Full SPI |
-| **Config Power** | Flat | Per-world/groups |
-| **Performance** | Average | Optimized |
+| **Code Quality** | Legacy | **Modern** |
+| **Version Support** | Modern only | **Legacy + Modern** |
+| **Storage Safety** | Basic | **Full backups** |
+| **Developer API** | Limited | **Full SPI** |
+| **Config Power** | Flat | **Per-world/groups** |
+| **Performance** | Average | **Optimized** |
 
 
 ---
@@ -134,7 +131,7 @@ PlayerData data = CrossroadsAPI.getPlayerData(player);
 
 ```bash
 1. Download crossroads-[version].jar
-2. Drop in /plugins/ folder  
+2. Drop in /plugins/ folder
 3. Restart server
 4. Edit config.yml
 5. Enjoy! 🎉
@@ -161,7 +158,7 @@ PlayerData data = CrossroadsAPI.getPlayerData(player);
 
 [![Discord](https://img.shields.io/discord/123456789?logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/example)
 [![Issues](https://img.shields.io/github/issues-raw/username/Crossroads?logo=github&style=for-the-badge)](https://github.com/username/Crossroads/issues)
-[![Stars](https://img.shields.io/github/stars/username/Crossroads?style=social&logo=github)](https://github.com/username/Crossroads/stargazers)
+[![Stars](https://img.shields.io/github/stars/username/Crossroads?style=social&logo=github)](https://github.com/username/Crossroads)
 
 **Made with ❤️ for Minecraft server owners**
 
@@ -170,5 +167,3 @@ PlayerData data = CrossroadsAPI.getPlayerData(player);
 ---
 
 *© 2026 Crossroads. MIT License. Built for the community, by the community.*
-
-```
