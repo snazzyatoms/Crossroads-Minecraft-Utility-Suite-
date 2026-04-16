@@ -89,6 +89,70 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <executions>
+                    <execution>
+                        <id>api-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>api</classifier>
+                            <includes>
+                                <include>dev/crossroadsmc/crossroads/api/**</include>
+                                <include>dev/crossroadsmc/crossroads/model/**</include>
+                                <include>dev/crossroadsmc/crossroads/service/PlayerDataService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/WarpService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/SpawnService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/KitService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/ModerationService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/ModuleManager.class</include>
+                                <include>dev/crossroadsmc/crossroads/CrossroadsPlugin.class</include>
+                            </includes>
+                            <excludes>
+                                <exclude>plugin.yml</exclude>
+                                <exclude>config.yml</exclude>
+                                <exclude>kits.yml</exclude>
+                                <exclude>motd.yml</exclude>
+                                <exclude>help.yml</exclude>
+                                <exclude>info.yml</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>spi-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>spi</classifier>
+                            <includes>
+                                <include>dev/crossroadsmc/crossroads/api/module/**</include>
+                                <include>dev/crossroadsmc/crossroads/model/**</include>
+                                <include>dev/crossroadsmc/crossroads/service/PlayerDataService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/WarpService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/SpawnService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/KitService.class</include>
+                                <include>dev/crossroadsmc/crossroads/service/ModerationService.class</include>
+                                <include>dev/crossroadsmc/crossroads/CrossroadsPlugin.class</include>
+                            </includes>
+                            <excludes>
+                                <exclude>plugin.yml</exclude>
+                                <exclude>config.yml</exclude>
+                                <exclude>kits.yml</exclude>
+                                <exclude>motd.yml</exclude>
+                                <exclude>help.yml</exclude>
+                                <exclude>info.yml</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.1</version>
                 <executions>
