@@ -3,7 +3,7 @@ version: ${project.version}
 main: dev.crossroadsmc.crossroads.CrossroadsPlugin
 api-version: "1.16"
 author: Kai
-description: Modern utility suite for Minecraft servers.
+description: Release-ready Minecraft utility suite with homes, warps, moderation, storage backends, and module support.
 
 commands:
   home:
@@ -59,6 +59,39 @@ commands:
   staffmode:
     description: Toggle staff mode.
     usage: /staffmode
+  socialspy:
+    description: View direct messages as staff.
+    usage: /socialspy
+  invsee:
+    description: Inspect a player's inventory.
+    usage: /invsee <player>
+  endersee:
+    description: Inspect a player's ender chest.
+    usage: /endersee <player>
+  freeze:
+    description: Freeze a player in place.
+    usage: /freeze <player> [reason]
+  unfreeze:
+    description: Unfreeze a player.
+    usage: /unfreeze <player>
+  mute:
+    description: Mute a player for a number of minutes.
+    usage: /mute <player> <minutes> [reason]
+  unmute:
+    description: Remove a player's mute.
+    usage: /unmute <player>
+  warn:
+    description: Record a moderation warning.
+    usage: /warn <player> <reason>
+  stafflog:
+    description: View moderation history for a player.
+    usage: /stafflog <player> [limit]
+  history:
+    description: Alias for /stafflog.
+    usage: /history <player> [limit]
+  seen:
+    description: Check when a player was last online.
+    usage: /seen <player>
   kit:
     description: Claim or list available kits.
     usage: /kit [name]
@@ -67,7 +100,7 @@ commands:
     usage: /rules
   crossroads:
     description: Crossroads admin command.
-    usage: /crossroads [reload|backup create|about]
+    usage: /crossroads [reload|backup create|about|modules]
     aliases: [cr]
 
 permissions:
@@ -81,7 +114,7 @@ permissions:
     description: Use warp commands.
     default: true
   crossroads.spawn:
-    description: Use spawn, back and rules.
+    description: Use spawn commands.
     default: true
   crossroads.back:
     description: Use /back.
@@ -98,6 +131,9 @@ permissions:
   crossroads.kit.builder:
     description: Claim the builder kit.
     default: true
+  crossroads.kit.adventurer:
+    description: Claim the adventurer kit.
+    default: true
   crossroads.rules:
     description: View server rules.
     default: true
@@ -106,6 +142,12 @@ permissions:
     default: op
   crossroads.staff.see:
     description: See vanished staff members.
+    default: op
+  crossroads.inspect:
+    description: Use staff inspection commands.
+    default: op
+  crossroads.moderation:
+    description: Use moderation commands and logs.
     default: op
   crossroads.admin:
     description: Use administrative Crossroads commands.

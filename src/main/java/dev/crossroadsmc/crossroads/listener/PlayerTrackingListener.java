@@ -16,11 +16,15 @@ public final class PlayerTrackingListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
-        plugin.getBackService().record(event.getPlayer(), event.getFrom());
+        if (plugin.isFeatureEnabled("back")) {
+            plugin.getBackService().record(event.getPlayer(), event.getFrom());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
-        plugin.getBackService().record(event.getEntity(), event.getEntity().getLocation());
+        if (plugin.isFeatureEnabled("back")) {
+            plugin.getBackService().record(event.getEntity(), event.getEntity().getLocation());
+        }
     }
 }

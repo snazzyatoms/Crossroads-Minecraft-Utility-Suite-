@@ -11,13 +11,22 @@ public final class KitDefinition {
     private final String permission;
     private final long cooldownSeconds;
     private final List<ItemStack> items;
+    private final List<String> commands;
 
-    public KitDefinition(String key, String displayName, String permission, long cooldownSeconds, List<ItemStack> items) {
+    public KitDefinition(
+        String key,
+        String displayName,
+        String permission,
+        long cooldownSeconds,
+        List<ItemStack> items,
+        List<String> commands
+    ) {
         this.key = Objects.requireNonNull(key, "key");
         this.displayName = Objects.requireNonNull(displayName, "displayName");
         this.permission = permission;
         this.cooldownSeconds = cooldownSeconds;
         this.items = List.copyOf(items);
+        this.commands = List.copyOf(commands);
     }
 
     public String getKey() {
@@ -38,5 +47,9 @@ public final class KitDefinition {
 
     public List<ItemStack> getItems() {
         return Collections.unmodifiableList(items);
+    }
+
+    public List<String> getCommands() {
+        return Collections.unmodifiableList(commands);
     }
 }

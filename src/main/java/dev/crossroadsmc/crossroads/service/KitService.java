@@ -2,7 +2,9 @@ package dev.crossroadsmc.crossroads.service;
 
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.KitDefinition;
+import dev.crossroadsmc.crossroads.util.Chat;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -12,7 +14,11 @@ import java.util.logging.Level;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 
 public final class KitService {
     private final CrossroadsPlugin plugin;
@@ -40,17 +46,15 @@ public final class KitService {
             }
 
             try {
-                List<ItemStack> items = kitSection.getStringList("items").stream()
-                    .map(this::parseItem)
-                    .filter(item -> item != null)
-                    .toList();
-
+                List<ItemStack> items = parseItems(kitSection);
+                List<String> commands = kitSection.getStringList("commands");
                 kits.put(key.toLowerCase(), new KitDefinition(
                     key.toLowerCase(),
                     kitSection.getString("display-name", key),
                     kitSection.getString("permission", ""),
                     kitSection.getLong("cooldown-seconds", 0L),
-                    items
+                    items,
+                    commands
                 ));
             } catch (Exception exception) {
                 plugin.getLogger().log(Level.WARNING, "Unable to parse kit '" + key + "'.", exception);
@@ -66,7 +70,89 @@ public final class KitService {
         return kits.get(key.toLowerCase());
     }
 
-    private ItemStack parseItem(String line) {
+    private List<ItemStack> parseItems(ConfigurationSection kitSection) {
+        List<ItemStack> items = new ArrayList<>();
+        ConfigurationSection itemsSection = kitSection.getConfigurationSection("items");
+        if (itemsSection != null) {
+            for (String key : itemsSection.getKeys(false)) {
+                ItemStack stack = parseItem(itemsSection.getConfigurationSection(key));
+                if (stack != null) {
+                    items.add(stack);
+                }
+            }
+            return items;
+        }
+
+        for (String line : kitSection.getStringList("items")) {
+            ItemStack item = parseLegacyItem(line);
+            if (item != null) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    private ItemStack parseItem(ConfigurationSection section) {
+        if (section == null) {
+            return null;
+        }
+
+        Material material = Material.matchMaterial(section.getString("material", ""));
+        if (material == null) {
+            plugin.getLogger().warning("Unknown material in kits.yml: " + section.getString("material", ""));
+            return null;
+        }
+
+        ItemStack item = new ItemStack(material, Math.max(1, section.getInt("amount", 1)));
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        if (section.isString("name")) {
+            meta.setDisplayName(Chat.color(plugin, section.getString("name", "")));
+        }
+
+        List<String> lore = section.getStringList("lore");
+        if (!lore.isEmpty()) {
+            meta.setLore(Chat.colorize(lore));
+        }
+
+        if (section.contains("custom-model-data")) {
+            meta.setCustomModelData(section.getInt("custom-model-data"));
+        }
+
+        meta.setUnbreakable(section.getBoolean("unbreakable", false));
+
+        for (String rawFlag : section.getStringList("flags")) {
+            try {
+                meta.addItemFlags(ItemFlag.valueOf(rawFlag.toUpperCase()));
+            } catch (IllegalArgumentException exception) {
+                plugin.getLogger().warning("Unknown item flag in kits.yml: " + rawFlag);
+            }
+        }
+
+        ConfigurationSection enchantments = section.getConfigurationSection("enchants");
+        if (enchantments != null) {
+            for (String key : enchantments.getKeys(false)) {
+                Enchantment enchantment = Enchantment.getByName(key.toUpperCase());
+                if (enchantment == null) {
+                    plugin.getLogger().warning("Unknown enchantment in kits.yml: " + key);
+                    continue;
+                }
+                meta.addEnchant(enchantment, enchantments.getInt(key, 1), true);
+            }
+        }
+
+        if (meta instanceof Damageable damageable && section.contains("damage")) {
+            damageable.setDamage(section.getInt("damage"));
+        }
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack parseLegacyItem(String line) {
         String[] parts = line.trim().split("\\s+");
         if (parts.length == 0 || parts[0].isBlank()) {
             return null;
@@ -78,11 +164,7 @@ public final class KitService {
             return null;
         }
 
-        int amount = 1;
-        if (parts.length > 1) {
-            amount = Integer.parseInt(parts[1]);
-        }
-
+        int amount = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
         return new ItemStack(material, Math.max(1, amount));
     }
 }

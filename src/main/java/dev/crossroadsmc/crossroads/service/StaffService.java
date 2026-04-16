@@ -19,6 +19,7 @@ public final class StaffService {
     private final CrossroadsPlugin plugin;
     private final Set<UUID> vanishedPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> flyingPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> socialSpyPlayers = ConcurrentHashMap.newKeySet();
     private final Map<UUID, StaffModeSession> staffModeSessions = new HashMap<>();
 
     public StaffService(CrossroadsPlugin plugin) {
@@ -35,6 +36,10 @@ public final class StaffService {
 
     public boolean isInStaffMode(Player player) {
         return staffModeSessions.containsKey(player.getUniqueId());
+    }
+
+    public boolean isSocialSpyEnabled(Player player) {
+        return socialSpyPlayers.contains(player.getUniqueId());
     }
 
     public boolean toggleVanish(Player player) {
@@ -68,6 +73,15 @@ public final class StaffService {
         flyingPlayers.add(player.getUniqueId());
         player.setAllowFlight(true);
         player.setFlying(true);
+        return true;
+    }
+
+    public boolean toggleSocialSpy(Player player) {
+        if (socialSpyPlayers.contains(player.getUniqueId())) {
+            socialSpyPlayers.remove(player.getUniqueId());
+            return false;
+        }
+        socialSpyPlayers.add(player.getUniqueId());
         return true;
     }
 
@@ -168,6 +182,7 @@ public final class StaffService {
             toggleVanish(player);
         }
         flyingPlayers.remove(player.getUniqueId());
+        socialSpyPlayers.remove(player.getUniqueId());
     }
 
     public void shutdown() {
@@ -180,6 +195,7 @@ public final class StaffService {
         }
         vanishedPlayers.clear();
         flyingPlayers.clear();
+        socialSpyPlayers.clear();
         staffModeSessions.clear();
     }
 }

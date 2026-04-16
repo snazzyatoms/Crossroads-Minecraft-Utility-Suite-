@@ -3,12 +3,16 @@ package dev.crossroadsmc.crossroads.command;
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.api.event.HomeTeleportEvent;
 import dev.crossroadsmc.crossroads.model.KitDefinition;
+import dev.crossroadsmc.crossroads.model.ModerationLogEntry;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
 import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.LocationFormatter;
+import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -18,11 +22,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 public final class CrossroadsCommandRouter implements CommandExecutor, TabCompleter {
@@ -35,6 +41,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
+        String feature = featureForCommand(name);
+        if (feature != null && !requireFeature(sender, feature)) {
+            return true;
+        }
+
         return switch (name) {
             case "home" -> handleHome(sender, args);
             case "sethome" -> handleSetHome(sender, args);
@@ -53,6 +64,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             case "fly" -> handleFly(sender);
             case "vanish" -> handleVanish(sender);
             case "staffmode" -> handleStaffMode(sender);
+            case "socialspy" -> handleSocialSpy(sender);
+            case "invsee" -> handleInvSee(sender, args);
+            case "endersee" -> handleEnderSee(sender, args);
+            case "freeze" -> handleFreeze(sender, args);
+            case "unfreeze" -> handleUnfreeze(sender, args);
+            case "mute" -> handleMute(sender, args);
+            case "unmute" -> handleUnmute(sender, args);
+            case "warn" -> handleWarn(sender, args);
+            case "stafflog", "history" -> handleStaffLog(sender, args);
+            case "seen" -> handleSeen(sender, args);
             case "kit" -> handleKit(sender, args);
             case "rules" -> handleRules(sender);
             case "crossroads" -> handleCrossroads(sender, args);
@@ -63,17 +84,22 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
+        String feature = featureForCommand(name);
+        if (feature != null && !plugin.isFeatureEnabled(feature)) {
+            return Collections.emptyList();
+        }
 
         return switch (name) {
             case "home", "delhome" -> args.length == 1 ? filterPrefix(homeNames(sender), args[0]) : Collections.emptyList();
             case "warp", "delwarp" -> args.length == 1 ? filterPrefix(new ArrayList<>(plugin.getWarpService().getWarps().keySet()), args[0]) : Collections.emptyList();
-            case "setwarp", "sethome" -> Collections.emptyList();
-            case "msg", "ignore" -> args.length == 1 ? filterPrefix(onlineNames(sender), args[0]) : Collections.emptyList();
-            case "reply" -> Collections.emptyList();
+            case "msg", "ignore", "invsee", "endersee", "freeze", "mute" ->
+                args.length == 1 ? filterPrefix(onlineNames(sender), args[0]) : Collections.emptyList();
+            case "unfreeze", "unmute", "warn", "stafflog", "history", "seen" ->
+                args.length == 1 ? filterPrefix(knownNames(), args[0]) : Collections.emptyList();
             case "kit" -> args.length == 1 ? filterPrefix(plugin.getKitService().getKits().stream().map(KitDefinition::getKey).toList(), args[0]) : Collections.emptyList();
             case "crossroads" -> {
                 if (args.length == 1) {
-                    yield filterPrefix(List.of("reload", "backup", "about"), args[0]);
+                    yield filterPrefix(List.of("reload", "backup", "about", "modules"), args[0]);
                 }
                 if (args.length == 2 && args[0].equalsIgnoreCase("backup")) {
                     yield filterPrefix(List.of("create"), args[1]);
@@ -95,24 +121,24 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation savedLocation = plugin.getPlayerDataService().get(player).getHome(homeName);
         if (savedLocation == null) {
-            Chat.send(plugin, player, "&cYou do not have a home named &e" + homeName + "&c.");
+            Chat.send(plugin, player, "<error>You do not have a home named <warn>" + homeName + "<error>.");
             return true;
         }
 
         Location destination = savedLocation.toLocation();
         if (destination == null) {
-            Chat.send(plugin, player, "&cThat home points to a world that is not loaded.");
+            Chat.send(plugin, player, "<error>That home points to a world that is not loaded.");
             return true;
         }
 
         HomeTeleportEvent event = new HomeTeleportEvent(player, homeName, destination);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled() || event.getDestination() == null) {
-            Chat.send(plugin, player, "&cYour home teleport was cancelled.");
+            Chat.send(plugin, player, "<error>Your home teleport was cancelled.");
             return true;
         }
 
-        teleport(player, event.getDestination(), "&aWelcome back to home &e" + homeName + "&a.");
+        teleport(player, event.getDestination(), "<success>Welcome back to home <warn>" + homeName + "<success>.");
         return true;
     }
 
@@ -128,13 +154,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         PlayerData data = plugin.getPlayerDataService().get(player);
         int homeLimit = plugin.getConfig().getInt("players.homes.default-limit", 3);
         if (!data.hasHome(homeName) && !player.hasPermission("crossroads.home.unlimited") && data.getHomeCount() >= homeLimit) {
-            Chat.send(plugin, player, "&cYou have reached your home limit of &e" + homeLimit + "&c.");
+            Chat.send(plugin, player, "<error>You have reached your home limit of <warn>" + homeLimit + "<error>.");
             return true;
         }
 
         data.setHome(homeName, SavedLocation.fromLocation(player.getLocation()));
         plugin.getPlayerDataService().save(player);
-        Chat.send(plugin, player, "&aSaved home &e" + homeName + "&a at &f" + LocationFormatter.human(player.getLocation()));
+        Chat.send(plugin, player, "<success>Saved home <warn>" + homeName + "<success> at <text>" + LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -149,12 +175,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation removed = plugin.getPlayerDataService().get(player).removeHome(homeName);
         if (removed == null) {
-            Chat.send(plugin, player, "&cNo home named &e" + homeName + "&c exists.");
+            Chat.send(plugin, player, "<error>No home named <warn>" + homeName + "<error> exists.");
             return true;
         }
 
         plugin.getPlayerDataService().save(player);
-        Chat.send(plugin, player, "&aDeleted home &e" + homeName + "&a.");
+        Chat.send(plugin, player, "<success>Deleted home <warn>" + homeName + "<success>.");
         return true;
     }
 
@@ -166,11 +192,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         Map<String, SavedLocation> homes = plugin.getPlayerDataService().get(player).getHomes();
         if (homes.isEmpty()) {
-            Chat.send(plugin, player, "&7You have not set any homes yet.");
+            Chat.send(plugin, player, "<subtle>You have not set any homes yet.");
             return true;
         }
 
-        Chat.send(plugin, player, "&eYour homes&7: &f" + String.join(", ", homes.keySet()));
+        Chat.send(plugin, player, "<warn>Your homes<subtle>: <text>" + String.join(", ", homes.keySet()));
         return true;
     }
 
@@ -181,23 +207,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (args.length == 0) {
-            Chat.send(plugin, player, "&7Available warps: &f" + String.join(", ", plugin.getWarpService().getWarps().keySet()));
+            Chat.send(plugin, player, "<info>Available warps<subtle>: <text>" + String.join(", ", plugin.getWarpService().getWarps().keySet()));
             return true;
         }
 
         SavedLocation warp = plugin.getWarpService().getWarp(args[0]);
         if (warp == null) {
-            Chat.send(plugin, player, "&cUnknown warp &e" + args[0] + "&c.");
+            Chat.send(plugin, player, "<error>Unknown warp <warn>" + args[0] + "<error>.");
             return true;
         }
 
         Location destination = warp.toLocation();
         if (destination == null) {
-            Chat.send(plugin, player, "&cThat warp points to a world that is not loaded.");
+            Chat.send(plugin, player, "<error>That warp points to a world that is not loaded.");
             return true;
         }
 
-        teleport(player, destination, "&aWarped to &e" + args[0].toLowerCase(Locale.ROOT) + "&a.");
+        teleport(player, destination, "<success>Warped to <warn>" + args[0].toLowerCase(Locale.ROOT) + "<success>.");
         return true;
     }
 
@@ -208,34 +234,33 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (args.length == 0) {
-            Chat.send(plugin, player, "&cUsage: /setwarp <name>");
+            Chat.send(plugin, player, "<error>Usage: <warn>/setwarp <name>");
             return true;
         }
 
         String warpName = args[0].toLowerCase(Locale.ROOT);
         plugin.getWarpService().setWarp(warpName, SavedLocation.fromLocation(player.getLocation()));
-        Chat.send(plugin, player, "&aSaved warp &e" + warpName + "&a at &f" + LocationFormatter.human(player.getLocation()));
+        Chat.send(plugin, player, "<success>Saved warp <warn>" + warpName + "<success> at <text>" + LocationFormatter.human(player.getLocation()));
         return true;
     }
 
     private boolean handleDelWarp(CommandSender sender, String[] args) {
-        Player player = requirePlayer(sender);
-        if (player == null || !requirePermission(player, "crossroads.admin")) {
+        if (!requirePermission(sender, "crossroads.admin")) {
             return true;
         }
 
         if (args.length == 0) {
-            Chat.send(plugin, player, "&cUsage: /delwarp <name>");
+            Chat.send(plugin, sender, "<error>Usage: <warn>/delwarp <name>");
             return true;
         }
 
         SavedLocation removed = plugin.getWarpService().removeWarp(args[0]);
         if (removed == null) {
-            Chat.send(plugin, player, "&cUnknown warp &e" + args[0] + "&c.");
+            Chat.send(plugin, sender, "<error>Unknown warp <warn>" + args[0] + "<error>.");
             return true;
         }
 
-        Chat.send(plugin, player, "&aDeleted warp &e" + args[0].toLowerCase(Locale.ROOT) + "&a.");
+        Chat.send(plugin, sender, "<success>Deleted warp <warn>" + args[0].toLowerCase(Locale.ROOT) + "<success>.");
         return true;
     }
 
@@ -246,11 +271,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         List<String> warps = plugin.getWarpService().getWarps().keySet().stream().sorted().toList();
         if (warps.isEmpty()) {
-            Chat.send(plugin, sender, "&7No warps have been created yet.");
+            Chat.send(plugin, sender, "<subtle>No warps have been created yet.");
             return true;
         }
 
-        Chat.send(plugin, sender, "&eWarps&7: &f" + String.join(", ", warps));
+        Chat.send(plugin, sender, "<warn>Warps<subtle>: <text>" + String.join(", ", warps));
         return true;
     }
 
@@ -262,17 +287,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation spawn = plugin.getSpawnService().getSpawn();
         if (spawn == null) {
-            Chat.send(plugin, player, "&cSpawn has not been configured yet.");
+            Chat.send(plugin, player, "<error>Spawn has not been configured yet.");
             return true;
         }
 
         Location location = spawn.toLocation();
         if (location == null) {
-            Chat.send(plugin, player, "&cSpawn points to a world that is not loaded.");
+            Chat.send(plugin, player, "<error>Spawn points to a world that is not loaded.");
             return true;
         }
 
-        teleport(player, location, "&aTeleported to spawn.");
+        teleport(player, location, "<success>Teleported to spawn.");
         return true;
     }
 
@@ -283,7 +308,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         plugin.getSpawnService().setSpawn(SavedLocation.fromLocation(player.getLocation()));
-        Chat.send(plugin, player, "&aSpawn updated to &f" + LocationFormatter.human(player.getLocation()));
+        Chat.send(plugin, player, "<success>Spawn updated to <text>" + LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -295,17 +320,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation backLocation = plugin.getBackService().get(player);
         if (backLocation == null) {
-            Chat.send(plugin, player, "&cNo previous location is available yet.");
+            Chat.send(plugin, player, "<error>No previous location is available yet.");
             return true;
         }
 
         Location location = backLocation.toLocation();
         if (location == null) {
-            Chat.send(plugin, player, "&cYour back location points to a world that is not loaded.");
+            Chat.send(plugin, player, "<error>Your back location points to a world that is not loaded.");
             return true;
         }
 
-        teleport(player, location, "&aReturned to your previous location.");
+        teleport(player, location, "<success>Returned to your previous location.");
         return true;
     }
 
@@ -316,21 +341,21 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (args.length < 2) {
-            Chat.send(plugin, player, "&cUsage: /msg <player> <message>");
+            Chat.send(plugin, player, "<error>Usage: <warn>/msg <player> <message>");
             return true;
         }
 
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null || !target.isOnline()) {
-            Chat.send(plugin, player, "&cThat player is not online.");
+            Chat.send(plugin, player, "<error>That player is not online.");
             return true;
         }
         if (target.equals(player)) {
-            Chat.send(plugin, player, "&cSending yourself a DM is a little too introspective even for Crossroads.");
+            Chat.send(plugin, player, "<error>Sending yourself a DM is a little too introspective even for Crossroads.");
             return true;
         }
 
-        String message = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        String message = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         plugin.getMessagingService().sendMessage(player, target, message);
         return true;
     }
@@ -342,13 +367,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (args.length == 0) {
-            Chat.send(plugin, player, "&cUsage: /reply <message>");
+            Chat.send(plugin, player, "<error>Usage: <warn>/reply <message>");
             return true;
         }
 
         Player target = plugin.getMessagingService().getReplyTarget(player);
         if (target == null) {
-            Chat.send(plugin, player, "&cNobody has messaged you recently.");
+            Chat.send(plugin, player, "<error>Nobody has messaged you recently.");
             return true;
         }
 
@@ -364,24 +389,24 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (args.length == 0) {
-            Chat.send(plugin, player, "&cUsage: /ignore <player>");
+            Chat.send(plugin, player, "<error>Usage: <warn>/ignore <player>");
             return true;
         }
 
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null || !target.isOnline()) {
-            Chat.send(plugin, player, "&cThat player is not online.");
+            Chat.send(plugin, player, "<error>That player is not online.");
             return true;
         }
         if (target.equals(player)) {
-            Chat.send(plugin, player, "&cIgnoring yourself would be impressive, but not useful.");
+            Chat.send(plugin, player, "<error>Ignoring yourself would be impressive, but not useful.");
             return true;
         }
 
         boolean ignored = plugin.getMessagingService().toggleIgnore(player, target);
         Chat.send(plugin, player, ignored
-            ? "&aYou are now ignoring &e" + target.getName() + "&a."
-            : "&aYou are no longer ignoring &e" + target.getName() + "&a.");
+            ? "<success>You are now ignoring <warn>" + target.getName() + "<success>."
+            : "<success>You are no longer ignoring <warn>" + target.getName() + "<success>.");
         return true;
     }
 
@@ -392,7 +417,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         boolean enabled = plugin.getStaffService().toggleFly(player);
-        Chat.send(plugin, player, enabled ? "&aFlight enabled." : "&eFlight disabled.");
+        Chat.send(plugin, player, enabled ? "<success>Flight enabled." : "<warn>Flight disabled.");
         return true;
     }
 
@@ -403,7 +428,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         boolean enabled = plugin.getStaffService().toggleVanish(player);
-        Chat.send(plugin, player, enabled ? "&aYou vanished from regular players." : "&eYou are visible again.");
+        Chat.send(plugin, player, enabled ? "<success>You vanished from regular players." : "<warn>You are visible again.");
         return true;
     }
 
@@ -415,8 +440,229 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         boolean enabled = plugin.getStaffService().toggleStaffMode(player);
         Chat.send(plugin, player, enabled
-            ? "&aStaff mode enabled. Your inventory was stored and your moderation toolkit is ready."
-            : "&eStaff mode disabled. Your original inventory has been restored.");
+            ? "<success>Staff mode enabled. Your inventory was stored and your moderation toolkit is ready."
+            : "<warn>Staff mode disabled. Your original inventory has been restored.");
+        return true;
+    }
+
+    private boolean handleSocialSpy(CommandSender sender) {
+        Player player = requirePlayer(sender);
+        if (player == null || !requirePermission(player, "crossroads.staff")) {
+            return true;
+        }
+
+        boolean enabled = plugin.getStaffService().toggleSocialSpy(player);
+        Chat.send(plugin, player, enabled ? "<success>SocialSpy enabled." : "<warn>SocialSpy disabled.");
+        return true;
+    }
+
+    private boolean handleInvSee(CommandSender sender, String[] args) {
+        Player player = requirePlayer(sender);
+        if (player == null || !requirePermission(player, "crossroads.inspect")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, player, "<error>Usage: <warn>/invsee <player>");
+            return true;
+        }
+
+        Player target = plugin.getServer().getPlayerExact(args[0]);
+        if (target == null) {
+            Chat.send(plugin, player, "<error>That player is not online.");
+            return true;
+        }
+
+        player.openInventory(target.getInventory());
+        Chat.send(plugin, player, "<success>Inspecting <warn>" + target.getName() + "<success>'s inventory.");
+        return true;
+    }
+
+    private boolean handleEnderSee(CommandSender sender, String[] args) {
+        Player player = requirePlayer(sender);
+        if (player == null || !requirePermission(player, "crossroads.inspect")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, player, "<error>Usage: <warn>/endersee <player>");
+            return true;
+        }
+
+        Player target = plugin.getServer().getPlayerExact(args[0]);
+        if (target == null) {
+            Chat.send(plugin, player, "<error>That player is not online.");
+            return true;
+        }
+
+        Inventory inventory = Bukkit.createInventory(target, target.getEnderChest().getSize(), target.getName() + "'s Ender Chest");
+        inventory.setContents(target.getEnderChest().getContents());
+        player.openInventory(inventory);
+        Chat.send(plugin, player, "<success>Inspecting <warn>" + target.getName() + "<success>'s ender chest.");
+        return true;
+    }
+
+    private boolean handleFreeze(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/freeze <player> [reason]");
+            return true;
+        }
+
+        Player target = plugin.getServer().getPlayerExact(args[0]);
+        if (target == null) {
+            Chat.send(plugin, sender, "<error>That player is not online.");
+            return true;
+        }
+
+        String reason = args.length > 1 ? String.join(" ", Arrays.copyOfRange(args, 1, args.length)) : "Under staff review";
+        plugin.getModerationService().freeze(sender, target, reason);
+        Chat.send(plugin, sender, "<success>Frozen <warn>" + target.getName() + "<success>.");
+        Chat.send(plugin, target, "<error>You have been frozen by staff. <subtle>" + reason);
+        return true;
+    }
+
+    private boolean handleUnfreeze(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/unfreeze <player>");
+            return true;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        plugin.getModerationService().unfreeze(sender, target);
+        if (target.isOnline() && target.getPlayer() != null) {
+            Chat.send(plugin, target.getPlayer(), "<success>You are no longer frozen.");
+        }
+        Chat.send(plugin, sender, "<success>Unfroze <warn>" + target.getName() + "<success>.");
+        return true;
+    }
+
+    private boolean handleMute(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length < 2) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/mute <player> <minutes> [reason]");
+            return true;
+        }
+
+        Player target = plugin.getServer().getPlayerExact(args[0]);
+        if (target == null) {
+            Chat.send(plugin, sender, "<error>That player is not online.");
+            return true;
+        }
+
+        long minutes;
+        try {
+            minutes = Long.parseLong(args[1]);
+        } catch (NumberFormatException exception) {
+            Chat.send(plugin, sender, "<error>Minutes must be a number.");
+            return true;
+        }
+
+        String reason = args.length > 2 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : "Muted by staff";
+        plugin.getModerationService().mute(sender, target, minutes * 60L, reason);
+        Chat.send(plugin, sender, "<success>Muted <warn>" + target.getName() + "<success> for <warn>" + minutes + "<success>m.");
+        Chat.send(plugin, target, "<error>You have been muted for <warn>" + minutes + "<error>m. Reason: <text>" + reason);
+        return true;
+    }
+
+    private boolean handleUnmute(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/unmute <player>");
+            return true;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        plugin.getModerationService().unmute(sender, target);
+        if (target.isOnline() && target.getPlayer() != null) {
+            Chat.send(plugin, target.getPlayer(), "<success>You have been unmuted.");
+        }
+        Chat.send(plugin, sender, "<success>Unmuted <warn>" + target.getName() + "<success>.");
+        return true;
+    }
+
+    private boolean handleWarn(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length < 2) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/warn <player> <reason>");
+            return true;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        String reason = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        plugin.getModerationService().warn(sender, target, reason);
+        if (target.isOnline() && target.getPlayer() != null) {
+            Chat.send(plugin, target.getPlayer(), "<error>Warning issued: <text>" + reason);
+        }
+        Chat.send(plugin, sender, "<success>Warning logged for <warn>" + target.getName() + "<success>.");
+        return true;
+    }
+
+    private boolean handleStaffLog(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.moderation")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/stafflog <player> [limit]");
+            return true;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        int limit = 10;
+        if (args.length > 1) {
+            try {
+                limit = Integer.parseInt(args[1]);
+            } catch (NumberFormatException exception) {
+                Chat.send(plugin, sender, "<error>Limit must be a number.");
+                return true;
+            }
+        }
+
+        List<ModerationLogEntry> entries = plugin.getModerationService().getLogs(target, Math.max(1, Math.min(limit, 20)));
+        if (entries.isEmpty()) {
+            Chat.send(plugin, sender, "<subtle>No moderation history found for <text>" + target.getName() + "<subtle>.");
+            return true;
+        }
+
+        Chat.send(plugin, sender, "<warn>Moderation log for <text>" + target.getName());
+        for (ModerationLogEntry entry : entries) {
+            Chat.sendRaw(plugin, sender, entry.toDisplayLine());
+        }
+        return true;
+    }
+
+    private boolean handleSeen(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.inspect")) {
+            return true;
+        }
+        if (args.length == 0) {
+            Chat.send(plugin, sender, "<error>Usage: <warn>/seen <player>");
+            return true;
+        }
+
+        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        if (target.isOnline()) {
+            Chat.send(plugin, sender, "<warn>" + target.getName() + " <success>is online right now.");
+            return true;
+        }
+
+        PlayerData data = plugin.getModerationService().getPlayerData(target.getUniqueId());
+        if (data.getLastQuitAt() <= 0L) {
+            Chat.send(plugin, sender, "<subtle>No recorded activity for <text>" + args[0] + "<subtle> yet.");
+            return true;
+        }
+
+        long seconds = Math.max(1L, (System.currentTimeMillis() - data.getLastQuitAt()) / 1000L);
+        Chat.send(plugin, sender, "<warn>" + data.getLastKnownName() + " <subtle>was last seen <text>" + TimeFormatter.duration(seconds) + " <subtle>ago.");
         return true;
     }
 
@@ -434,21 +680,21 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 .toList();
 
             if (available.isEmpty()) {
-                Chat.send(plugin, player, "&7No kits are available for you right now.");
+                Chat.send(plugin, player, "<subtle>No kits are available for you right now.");
                 return true;
             }
 
-            Chat.send(plugin, player, "&eAvailable kits&7: &f" + String.join(", ", available));
+            Chat.send(plugin, player, "<info>Available kits<subtle>: <text>" + String.join(", ", available));
             return true;
         }
 
         KitDefinition kit = plugin.getKitService().getKit(args[0]);
         if (kit == null) {
-            Chat.send(plugin, player, "&cUnknown kit &e" + args[0] + "&c.");
+            Chat.send(plugin, player, "<error>Unknown kit <warn>" + args[0] + "<error>.");
             return true;
         }
         if (kit.getPermission() != null && !kit.getPermission().isBlank() && !player.hasPermission(kit.getPermission())) {
-            Chat.send(plugin, player, "&cYou do not have access to that kit.");
+            Chat.send(plugin, player, "<error>You do not have access to that kit.");
             return true;
         }
 
@@ -457,7 +703,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         long nextUse = data.getKitCooldown(kit.getKey());
         if (nextUse > now) {
             long remaining = Math.max(1L, (nextUse - now) / 1000L);
-            Chat.send(plugin, player, "&cThat kit is on cooldown for another &e" + remaining + "&cs.");
+            Chat.send(plugin, player, "<error>That kit is on cooldown for another <warn>" + TimeFormatter.duration(remaining) + "<error>.");
             return true;
         }
 
@@ -466,12 +712,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             leftovers.values().forEach(leftover -> Objects.requireNonNull(player.getWorld()).dropItemNaturally(player.getLocation(), leftover));
         }
 
+        for (String rawCommand : kit.getCommands()) {
+            String dispatch = rawCommand.replace("%player%", player.getName());
+            plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), dispatch);
+        }
+
         if (kit.getCooldownSeconds() > 0L) {
             data.setKitCooldown(kit.getKey(), now + (kit.getCooldownSeconds() * 1000L));
             plugin.getPlayerDataService().save(player);
         }
 
-        Chat.send(plugin, player, "&aClaimed kit &e" + kit.getDisplayName() + "&a.");
+        Chat.send(plugin, player, "<success>Claimed kit <warn>" + kit.getDisplayName() + "<success>.");
         return true;
     }
 
@@ -482,21 +733,22 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         List<String> rules = plugin.getConfig().getStringList("rules");
         if (rules.isEmpty()) {
-            Chat.send(plugin, sender, "&7No rules have been configured yet.");
+            Chat.send(plugin, sender, "<subtle>No rules have been configured yet.");
             return true;
         }
 
-        Chat.send(plugin, sender, "&eServer Rules");
+        Chat.send(plugin, sender, "<warn>Server Rules");
         for (String line : rules) {
-            Chat.sendRaw(sender, Chat.color("&8- &7" + line));
+            Chat.sendRaw(plugin, sender, "<muted>- <subtle>" + line);
         }
         return true;
     }
 
     private boolean handleCrossroads(CommandSender sender, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("about")) {
-            Chat.send(plugin, sender, "&6Crossroads &7v" + plugin.getDescription().getVersion()
-                + " &8| &fHomes, warps, spawn, kits, messaging, staff tools and backups.");
+            Chat.send(plugin, sender, "<accent>Crossroads <subtle>v<text>" + plugin.getDescription().getVersion()
+                + " <muted>| <text>Storage: <warn>" + plugin.getStorageManager().getProvider().getType()
+                + " <muted>| <text>Modules: <warn>" + plugin.getModuleManager().getModules().size());
             return true;
         }
 
@@ -506,27 +758,42 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         if (args[0].equalsIgnoreCase("reload")) {
             plugin.reloadCrossroads();
-            Chat.send(plugin, sender, "&aConfiguration, warps, spawn, and kits have been reloaded.");
+            Chat.send(plugin, sender, "<success>Configuration, kits, warps, spawn, and welcome profiles have been reloaded.");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("modules")) {
+            if (!requireFeature(sender, "modules")) {
+                return true;
+            }
+            String modules = plugin.getModuleManager().getModules().stream()
+                .map(module -> module.getId())
+                .sorted()
+                .collect(Collectors.joining(", "));
+            Chat.send(plugin, sender, modules.isBlank() ? "<subtle>No external modules are currently loaded." : "<warn>Modules<subtle>: <text>" + modules);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("backup")) {
+            if (!requireFeature(sender, "backups")) {
+                return true;
+            }
             if (args.length < 2 || !args[1].equalsIgnoreCase("create")) {
-                Chat.send(plugin, sender, "&cUsage: /crossroads backup create");
+                Chat.send(plugin, sender, "<error>Usage: <warn>/crossroads backup create");
                 return true;
             }
 
             try {
                 File backup = plugin.getBackupService().createBackup("manual");
-                Chat.send(plugin, sender, "&aBackup created: &f" + backup.getName());
+                Chat.send(plugin, sender, "<success>Backup created: <text>" + backup.getName());
             } catch (Exception exception) {
-                Chat.send(plugin, sender, "&cBackup failed. Check console for details.");
+                Chat.send(plugin, sender, "<error>Backup failed. Check console for details.");
                 plugin.getLogger().warning("Manual backup failed: " + exception.getMessage());
             }
             return true;
         }
 
-        Chat.send(plugin, sender, "&cUnknown subcommand. Try &e/crossroads about&c, &e/crossroads reload&c or &e/crossroads backup create&c.");
+        Chat.send(plugin, sender, "<error>Unknown subcommand. Try <warn>/crossroads about<error>, <warn>/crossroads reload<error>, <warn>/crossroads modules<error> or <warn>/crossroads backup create<error>.");
         return true;
     }
 
@@ -541,7 +808,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return player;
         }
 
-        Chat.send(plugin, sender, "&cThis command can only be used in-game.");
+        Chat.send(plugin, sender, "<error>This command can only be used in-game.");
         return null;
     }
 
@@ -550,7 +817,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        Chat.send(plugin, sender, "&cYou do not have permission for that.");
+        Chat.send(plugin, sender, "<error>You do not have permission for that.");
+        return false;
+    }
+
+    private boolean requireFeature(CommandSender sender, String featureKey) {
+        if (plugin.isFeatureEnabled(featureKey)) {
+            return true;
+        }
+
+        Chat.send(plugin, sender, "<error>That feature is disabled in the Crossroads config.");
         return false;
     }
 
@@ -569,10 +845,36 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             .toList();
     }
 
-    private List<String> filterPrefix(List<String> values, String input) {
+    private List<String> knownNames() {
+        return Bukkit.getOfflinePlayers().length == 0
+            ? Collections.emptyList()
+            : Arrays.stream(Bukkit.getOfflinePlayers())
+                .map(OfflinePlayer::getName)
+                .filter(Objects::nonNull)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private List<String> filterPrefix(Collection<String> values, String input) {
         String lowered = input.toLowerCase(Locale.ROOT);
         return values.stream()
             .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(lowered))
             .collect(Collectors.toList());
+    }
+
+    private String featureForCommand(String commandName) {
+        return switch (commandName) {
+            case "home", "sethome", "delhome", "homes" -> "homes";
+            case "warp", "setwarp", "delwarp", "warps" -> "warps";
+            case "spawn", "setspawn" -> "spawn";
+            case "back" -> "back";
+            case "msg", "reply", "ignore" -> "messaging";
+            case "fly", "vanish", "staffmode", "socialspy" -> "staff-tools";
+            case "invsee", "endersee", "seen" -> "inspection";
+            case "freeze", "unfreeze", "mute", "unmute", "warn", "stafflog", "history" -> "moderation";
+            case "kit" -> "kits";
+            case "rules" -> "rules";
+            default -> null;
+        };
     }
 }

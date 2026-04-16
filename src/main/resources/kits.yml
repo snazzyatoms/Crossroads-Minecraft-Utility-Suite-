@@ -1,19 +1,80 @@
 kits:
   starter:
-    display-name: Starter
+    display-name: "&aStarter"
     permission: crossroads.kit.starter
     cooldown-seconds: 21600
+    commands:
+      - "tell %player% Crossroads starter kit delivered."
     items:
-      - STONE_SWORD 1
-      - BREAD 16
-      - TORCH 32
-      - OAK_LOG 16
+      blade:
+        material: STONE_SWORD
+        amount: 1
+        name: "&aPathfinder Blade"
+        lore:
+          - "&7A dependable first weapon."
+        enchants:
+          DURABILITY: 1
+      rations:
+        material: BREAD
+        amount: 16
+      torches:
+        material: TORCH
+        amount: 32
+      logs:
+        material: OAK_LOG
+        amount: 32
+
   builder:
-    display-name: Builder
+    display-name: "&eBuilder"
     permission: crossroads.kit.builder
     cooldown-seconds: 43200
     items:
-      - STONE_PICKAXE 1
-      - COBBLESTONE 64
-      - OAK_PLANKS 64
-      - GLASS 32
+      pickaxe:
+        material: IRON_PICKAXE
+        amount: 1
+        name: "&eSurveyor's Pick"
+        enchants:
+          DURABILITY: 2
+      stone:
+        material: STONE
+        amount: 64
+      planks:
+        material: OAK_PLANKS
+        amount: 64
+      glass:
+        material: GLASS
+        amount: 32
+
+  adventurer:
+    display-name: "&bAdventurer"
+    permission: crossroads.kit.adventurer
+    cooldown-seconds: 86400
+    commands:
+      - "xp add %player% 5 levels"
+    items:
+      sword:
+        material: IRON_SWORD
+        amount: 1
+        name: "&bTrailbreaker"
+        lore:
+          - "&7Issued for long roads and rough nights."
+        enchants:
+          DAMAGE_ALL: 2
+          DURABILITY: 2
+      bow:
+        material: BOW
+        amount: 1
+        enchants:
+          ARROW_DAMAGE: 2
+      arrows:
+        material: ARROW
+        amount: 32
+      chestplate:
+        material: IRON_CHESTPLATE
+        amount: 1
+        name: "&bScout Mail"
+        enchants:
+          PROTECTION_ENVIRONMENTAL: 2
+      food:
+        material: COOKED_BEEF
+        amount: 24

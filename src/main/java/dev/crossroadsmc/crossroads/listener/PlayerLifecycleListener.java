@@ -20,9 +20,17 @@ public final class PlayerLifecycleListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         plugin.getPlayerDataService().get(player);
+        if (plugin.isFeatureEnabled("moderation")) {
+            plugin.getModerationService().updateJoinState(player);
+        }
         plugin.getStaffService().applyJoinVisibility(player);
+        if (plugin.isFeatureEnabled("welcome")) {
+            plugin.getWelcomeService().welcome(player);
+        }
 
-        if (!player.hasPlayedBefore() && plugin.getConfig().getBoolean("spawn.teleport-on-first-join", false)) {
+        if (plugin.isFeatureEnabled("spawn")
+            && !player.hasPlayedBefore()
+            && plugin.getConfig().getBoolean("spawn.teleport-on-first-join", false)) {
             SavedLocation spawn = plugin.getSpawnService().getSpawn();
             if (spawn != null) {
                 Location location = spawn.toLocation();
@@ -36,6 +44,9 @@ public final class PlayerLifecycleListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        if (plugin.isFeatureEnabled("moderation")) {
+            plugin.getModerationService().updateQuitState(player);
+        }
         plugin.getStaffService().removePlayerState(player);
         plugin.getPlayerDataService().save(player);
     }

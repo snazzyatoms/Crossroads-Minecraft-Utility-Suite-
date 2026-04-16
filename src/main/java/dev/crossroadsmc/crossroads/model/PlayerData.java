@@ -1,17 +1,24 @@
 package dev.crossroadsmc.crossroads.model;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PlayerData {
     private final UUID uuid;
-    private final Map<String, SavedLocation> homes = new HashMap<>();
-    private final Set<UUID> ignoredPlayers = new HashSet<>();
-    private final Map<String, Long> kitCooldowns = new HashMap<>();
+    private final Map<String, SavedLocation> homes = new ConcurrentHashMap<>();
+    private final Set<UUID> ignoredPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<String, Long> kitCooldowns = new ConcurrentHashMap<>();
+    private volatile String lastKnownName = "";
+    private volatile long lastJoinAt;
+    private volatile long lastQuitAt;
+    private volatile long mutedUntil;
+    private volatile String muteReason = "";
+    private volatile boolean frozen;
+    private volatile String freezeReason = "";
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -92,5 +99,65 @@ public final class PlayerData {
     public void importKitCooldowns(Map<String, Long> loadedCooldowns) {
         kitCooldowns.clear();
         kitCooldowns.putAll(loadedCooldowns);
+    }
+
+    public String getLastKnownName() {
+        return lastKnownName;
+    }
+
+    public void setLastKnownName(String lastKnownName) {
+        this.lastKnownName = Objects.requireNonNullElse(lastKnownName, "");
+    }
+
+    public long getLastJoinAt() {
+        return lastJoinAt;
+    }
+
+    public void setLastJoinAt(long lastJoinAt) {
+        this.lastJoinAt = lastJoinAt;
+    }
+
+    public long getLastQuitAt() {
+        return lastQuitAt;
+    }
+
+    public void setLastQuitAt(long lastQuitAt) {
+        this.lastQuitAt = lastQuitAt;
+    }
+
+    public long getMutedUntil() {
+        return mutedUntil;
+    }
+
+    public void setMutedUntil(long mutedUntil) {
+        this.mutedUntil = mutedUntil;
+    }
+
+    public String getMuteReason() {
+        return muteReason;
+    }
+
+    public void setMuteReason(String muteReason) {
+        this.muteReason = Objects.requireNonNullElse(muteReason, "");
+    }
+
+    public boolean isMuted() {
+        return mutedUntil > System.currentTimeMillis();
+    }
+
+    public boolean isFrozen() {
+        return frozen;
+    }
+
+    public void setFrozen(boolean frozen) {
+        this.frozen = frozen;
+    }
+
+    public String getFreezeReason() {
+        return freezeReason;
+    }
+
+    public void setFreezeReason(String freezeReason) {
+        this.freezeReason = Objects.requireNonNullElse(freezeReason, "");
     }
 }

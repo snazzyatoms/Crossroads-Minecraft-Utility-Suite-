@@ -1,25 +1,86 @@
 messages:
-  prefix: "&6Crossroads &8» &7"
+  prefix: "<accent>Crossroads <muted>» <text>"
+  palette:
+    error: "&c"
+    success: "&a"
+    warn: "&e"
+    info: "&b"
+    accent: "&6"
+    text: "&f"
+    subtle: "&7"
+    muted: "&8"
+    highlight: "&d"
   direct:
-    incoming: "&d[from %player%] &f%message%"
-    outgoing: "&d[to %player%] &f%message%"
+    incoming: "<highlight>[from %player%] <text>%message%"
+    outgoing: "<highlight>[to %player%] <text>%message%"
+    spy: "<muted>[Spy] <highlight>%from% <subtle>-> <highlight>%to%<subtle>: <text>%message%"
     play-sound: true
 
 players:
   homes:
     default-name: home
-    default-limit: 3
+    default-limit: 5
+
+features:
+  homes: true
+  warps: true
+  spawn: true
+  back: true
+  messaging: true
+  kits: true
+  rules: true
+  welcome: true
+  staff-tools: true
+  inspection: true
+  moderation: true
+  backups: true
+  modules: true
 
 spawn:
-  teleport-on-first-join: false
+  teleport-on-first-join: true
+
+storage:
+  type: YAML
+  sqlite:
+    file: storage/crossroads.db
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    database: crossroads
+    username: root
+    password: change-me
+    use-ssl: false
+  pool:
+    minimum-idle: 1
+    maximum-size: 6
+    connection-timeout-ms: 10000
+
+persistence:
+  autosave:
+    enabled: true
+    interval-seconds: 120
 
 backups:
   auto-on-startup: true
   auto-on-shutdown: true
   max-files: 10
 
+welcome:
+  enabled: true
+  first-join:
+    - "<accent>Welcome to Crossroads, <warn>%player%<accent>!"
+    - "<subtle>Your journey starts in <text>%world%<subtle>. Use <warn>/rules <subtle>and <warn>/spawn <subtle>to get settled."
+  returning:
+    - "<accent>Welcome back, <warn>%player%<accent>."
+    - "<subtle>Everything is ready for you in <text>%world%<subtle>."
+  per-world:
+    world_nether:
+      returning:
+        - "<error>Watch your footing, <warn>%player%<error>."
+        - "<subtle>Crossroads detected a return to the Nether."
+
 rules:
-  - "&fRespect other players and staff."
-  - "&fNo cheating, griefing, or exploiting bugs."
-  - "&fKeep chat welcoming and server-friendly."
-  - "&fHave fun building your corner of the world."
+  - "<text>Respect other players and staff."
+  - "<text>No cheating, griefing, or exploiting bugs."
+  - "<text>Keep chat welcoming and server-friendly."
+  - "<text>Listen to staff during moderation reviews."
