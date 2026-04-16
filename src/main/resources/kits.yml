@@ -1,0 +1,19 @@
+kits:
+  starter:
+    display-name: Starter
+    permission: crossroads.kit.starter
+    cooldown-seconds: 21600
+    items:
+      - STONE_SWORD 1
+      - BREAD 16
+      - TORCH 32
+      - OAK_LOG 16
+  builder:
+    display-name: Builder
+    permission: crossroads.kit.builder
+    cooldown-seconds: 43200
+    items:
+      - STONE_PICKAXE 1
+      - COBBLESTONE 64
+      - OAK_PLANKS 64
+      - GLASS 32

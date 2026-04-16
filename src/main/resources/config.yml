@@ -1,0 +1,25 @@
+messages:
+  prefix: "&6Crossroads &8» &7"
+  direct:
+    incoming: "&d[from %player%] &f%message%"
+    outgoing: "&d[to %player%] &f%message%"
+    play-sound: true
+
+players:
+  homes:
+    default-name: home
+    default-limit: 3
+
+spawn:
+  teleport-on-first-join: false
+
+backups:
+  auto-on-startup: true
+  auto-on-shutdown: true
+  max-files: 10
+
+rules:
+  - "&fRespect other players and staff."
+  - "&fNo cheating, griefing, or exploiting bugs."
+  - "&fKeep chat welcoming and server-friendly."
+  - "&fHave fun building your corner of the world."

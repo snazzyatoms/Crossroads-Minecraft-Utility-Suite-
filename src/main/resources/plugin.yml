@@ -1,0 +1,112 @@
+name: Crossroads
+version: ${project.version}
+main: dev.crossroadsmc.crossroads.CrossroadsPlugin
+api-version: "1.16"
+author: Kai
+description: Modern utility suite for Minecraft servers.
+
+commands:
+  home:
+    description: Teleport to one of your homes.
+    usage: /home [name]
+  sethome:
+    description: Save your current location as a home.
+    usage: /sethome [name]
+  delhome:
+    description: Delete one of your homes.
+    usage: /delhome [name]
+  homes:
+    description: List your saved homes.
+    usage: /homes
+  warp:
+    description: Teleport to a server warp.
+    usage: /warp <name>
+  setwarp:
+    description: Create a new warp.
+    usage: /setwarp <name>
+  delwarp:
+    description: Delete a warp.
+    usage: /delwarp <name>
+  warps:
+    description: List server warps.
+    usage: /warps
+  spawn:
+    description: Teleport to server spawn.
+    usage: /spawn
+  setspawn:
+    description: Set the server spawn.
+    usage: /setspawn
+  back:
+    description: Return to your previous location.
+    usage: /back
+  msg:
+    description: Send a private message.
+    usage: /msg <player> <message>
+    aliases: [tell, whisper]
+  reply:
+    description: Reply to the last person who messaged you.
+    usage: /reply <message>
+    aliases: [r]
+  ignore:
+    description: Toggle private messages from another player.
+    usage: /ignore <player>
+  fly:
+    description: Toggle flight mode.
+    usage: /fly
+  vanish:
+    description: Toggle vanish mode.
+    usage: /vanish
+  staffmode:
+    description: Toggle staff mode.
+    usage: /staffmode
+  kit:
+    description: Claim or list available kits.
+    usage: /kit [name]
+  rules:
+    description: View the server rules.
+    usage: /rules
+  crossroads:
+    description: Crossroads admin command.
+    usage: /crossroads [reload|backup create|about]
+    aliases: [cr]
+
+permissions:
+  crossroads.home:
+    description: Use homes commands.
+    default: true
+  crossroads.home.unlimited:
+    description: Bypass the home limit.
+    default: op
+  crossroads.warp:
+    description: Use warp commands.
+    default: true
+  crossroads.spawn:
+    description: Use spawn, back and rules.
+    default: true
+  crossroads.back:
+    description: Use /back.
+    default: true
+  crossroads.msg:
+    description: Use private messaging commands.
+    default: true
+  crossroads.kit:
+    description: Use kit commands.
+    default: true
+  crossroads.kit.starter:
+    description: Claim the starter kit.
+    default: true
+  crossroads.kit.builder:
+    description: Claim the builder kit.
+    default: true
+  crossroads.rules:
+    description: View server rules.
+    default: true
+  crossroads.staff:
+    description: Use staff utility commands.
+    default: op
+  crossroads.staff.see:
+    description: See vanished staff members.
+    default: op
+  crossroads.admin:
+    description: Use administrative Crossroads commands.
+    default: op
