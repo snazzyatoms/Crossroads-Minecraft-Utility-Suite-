@@ -106,6 +106,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
             }
         }
 
+        logStartupDiagnostics();
         getLogger().info("Crossroads is online and ready to guide your players.");
     }
 
@@ -310,6 +311,26 @@ public final class CrossroadsPlugin extends JavaPlugin {
             new dev.crossroadsmc.crossroads.placeholder.CrossroadsPlaceholderExpansion(this).register();
         } catch (Exception exception) {
             getLogger().log(Level.WARNING, "Unable to register PlaceholderAPI expansion.", exception);
+        }
+    }
+
+    private void logStartupDiagnostics() {
+        boolean placeholderApiPresent = getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
+        boolean coffersPresent = getServer().getPluginManager().getPlugin("Coffers") != null;
+        boolean aegisPresent = aegisGuardHookService != null && aegisGuardHookService.isAvailable();
+        String aegisVersion = aegisPresent ? aegisGuardHookService.getVersion() : "off";
+        String economyMode = getConfig().getString("economy.mode", "money");
+
+        getLogger().info("Startup diagnostics: storage=" + storageManager.getProvider().getType()
+            + ", economyProvider=" + economyService.getProviderName()
+            + ", economyMode=" + economyMode
+            + ", Coffers=" + coffersPresent
+            + ", AegisGuard=" + aegisVersion
+            + ", PlaceholderAPI=" + placeholderApiPresent
+            + ", modules=" + moduleManager.getModules().size());
+
+        if ("aegis_claim_blocks".equalsIgnoreCase(economyMode) && !aegisPresent) {
+            getLogger().warning("economy.mode is set to aegis_claim_blocks, but AegisGuard is not available. Crossroads costs will not work until AegisGuard is enabled or the mode is changed.");
         }
     }
 }

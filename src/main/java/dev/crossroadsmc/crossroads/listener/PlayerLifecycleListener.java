@@ -7,10 +7,11 @@ import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 public final class PlayerLifecycleListener implements Listener {
@@ -20,15 +21,15 @@ public final class PlayerLifecycleListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
-    public void onLogin(PlayerLoginEvent event) {
-        PlayerData data = plugin.getPlayerDataService().get(event.getPlayer());
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPreLogin(AsyncPlayerPreLoginEvent event) {
+        PlayerData data = plugin.getPlayerDataService().get(event.getUniqueId());
         if (data.isBanned()) {
             long remaining = data.getBannedUntil() == Long.MAX_VALUE
                 ? Long.MAX_VALUE
                 : Math.max(1L, (data.getBannedUntil() - System.currentTimeMillis()) / 1000L);
             String durationText = remaining == Long.MAX_VALUE ? "permanently" : TimeFormatter.duration(remaining);
-            event.disallow(PlayerLoginEvent.Result.KICK_BANNED,
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED,
                 Chat.color(plugin, "<error>You are banned <warn>" + durationText + "<error>. Reason: <text>" + data.getBanReason()));
         }
     }
