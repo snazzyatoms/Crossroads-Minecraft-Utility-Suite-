@@ -41,6 +41,12 @@ public final class CrossroadsPlaceholderExpansion extends PlaceholderExpansion {
         if (params.equalsIgnoreCase("economy_provider")) {
             return plugin.getEconomyService().getProviderName();
         }
+        if (params.equalsIgnoreCase("protection_plugins")) {
+            return plugin.getProtectionCompatibilityService().getActiveProviderSummary();
+        }
+        if (params.equalsIgnoreCase("protection_count")) {
+            return String.valueOf(plugin.getProtectionCompatibilityService().getActiveProviders().size());
+        }
         if (params.equalsIgnoreCase("aegis_enabled")) {
             return String.valueOf(plugin.getAegisGuardHookService().isAvailable());
         }
@@ -77,6 +83,13 @@ public final class CrossroadsPlaceholderExpansion extends PlaceholderExpansion {
             return String.valueOf(plugin.getAegisGuardHookService().getAvailableClaimBlocks(player.getUniqueId()));
         }
         if (player.isOnline() && player.getPlayer() != null) {
+            var protectionHere = plugin.getProtectionCompatibilityService().describe(player.getPlayer().getLocation());
+            if (params.equalsIgnoreCase("protection_here")) {
+                return protectionHere == null ? "" : protectionHere.areaName();
+            }
+            if (params.equalsIgnoreCase("protection_here_plugin")) {
+                return protectionHere == null ? "" : protectionHere.providerName();
+            }
             var plotInfo = plugin.getAegisGuardHookService().getPlotInfo(player.getPlayer().getLocation());
             if (params.equalsIgnoreCase("aegis_plot_name")) {
                 return plotInfo == null ? "" : plotInfo.name();

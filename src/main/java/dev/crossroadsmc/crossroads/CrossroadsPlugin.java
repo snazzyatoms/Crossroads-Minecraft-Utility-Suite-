@@ -18,6 +18,7 @@ import dev.crossroadsmc.crossroads.service.MessagingService;
 import dev.crossroadsmc.crossroads.service.ModerationService;
 import dev.crossroadsmc.crossroads.service.ModuleManager;
 import dev.crossroadsmc.crossroads.service.PlayerDataService;
+import dev.crossroadsmc.crossroads.service.ProtectionCompatibilityService;
 import dev.crossroadsmc.crossroads.service.SpawnService;
 import dev.crossroadsmc.crossroads.service.StaffService;
 import dev.crossroadsmc.crossroads.service.TeleportRequestService;
@@ -52,6 +53,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
     private TeleportRequestService teleportRequestService;
     private TextPageService textPageService;
     private AegisGuardHookService aegisGuardHookService;
+    private ProtectionCompatibilityService protectionCompatibilityService;
     private EconomyService economyService;
     private MenuService menuService;
     private ImportService importService;
@@ -83,6 +85,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
         this.welcomeService = new WelcomeService(this);
         this.textPageService = new TextPageService(this);
         this.aegisGuardHookService = new AegisGuardHookService(this);
+        this.protectionCompatibilityService = new ProtectionCompatibilityService(this, aegisGuardHookService);
         this.economyService = new EconomyService(this);
         this.menuService = new MenuService(this);
         this.importService = new ImportService(this);
@@ -150,6 +153,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
         jailService.reload();
         textPageService.reload();
         aegisGuardHookService.reload();
+        protectionCompatibilityService.reload();
         economyService.reload();
         scheduleAutosave();
     }
@@ -224,6 +228,10 @@ public final class CrossroadsPlugin extends JavaPlugin {
 
     public AegisGuardHookService getAegisGuardHookService() {
         return aegisGuardHookService;
+    }
+
+    public ProtectionCompatibilityService getProtectionCompatibilityService() {
+        return protectionCompatibilityService;
     }
 
     public MenuService getMenuService() {
@@ -320,12 +328,14 @@ public final class CrossroadsPlugin extends JavaPlugin {
         boolean aegisPresent = aegisGuardHookService != null && aegisGuardHookService.isAvailable();
         String aegisVersion = aegisPresent ? aegisGuardHookService.getVersion() : "off";
         String economyMode = getConfig().getString("economy.mode", "money");
+        String protections = protectionCompatibilityService == null ? "none" : protectionCompatibilityService.getActiveProviderSummary();
 
         getLogger().info("Startup diagnostics: storage=" + storageManager.getProvider().getType()
             + ", economyProvider=" + economyService.getProviderName()
             + ", economyMode=" + economyMode
             + ", Coffers=" + coffersPresent
             + ", AegisGuard=" + aegisVersion
+            + ", protections=" + protections
             + ", PlaceholderAPI=" + placeholderApiPresent
             + ", modules=" + moduleManager.getModules().size());
 

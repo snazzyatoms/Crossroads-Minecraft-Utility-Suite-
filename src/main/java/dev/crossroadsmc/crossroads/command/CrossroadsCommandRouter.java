@@ -732,8 +732,8 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             if (feet.getType().isSolid() || below.getType() == Material.LAVA || below.getType() == Material.WATER || below.getType() == Material.AIR) {
                 continue;
             }
-            if (plugin.getConfig().getBoolean("aegisguard.rtp-avoid-protected-plots", true)
-                && plugin.getAegisGuardHookService().isProtected(target)) {
+            if (plugin.getProtectionCompatibilityService().shouldAvoidProtectedRtp()
+                && plugin.getProtectionCompatibilityService().isProtected(target)) {
                 continue;
             }
             if (teleport(player, target, "<success>Random teleport complete.")) {
@@ -1265,6 +1265,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 + " <muted>| <text>Storage: <warn>" + plugin.getStorageManager().getProvider().getType()
                 + " <muted>| <text>Economy: <warn>" + plugin.getEconomyService().getProviderName()
                 + " <muted>| <text>AegisGuard: <warn>" + (plugin.getAegisGuardHookService().isAvailable() ? plugin.getAegisGuardHookService().getVersion() : "off")
+                + " <muted>| <text>Protections: <warn>" + plugin.getProtectionCompatibilityService().getActiveProviderSummary()
                 + " <muted>| <text>Modules: <warn>" + plugin.getModuleManager().getModules().size());
             return true;
         }
@@ -1329,9 +1330,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
     }
 
     private boolean teleport(Player player, Location destination, String successMessage) {
-        String aegisFailure = plugin.getAegisGuardHookService().checkTeleportAccess(player, destination);
-        if (aegisFailure != null) {
-            Chat.send(plugin, player, "<error>" + aegisFailure);
+        String protectionFailure = plugin.getProtectionCompatibilityService().checkTeleportAccess(player, destination);
+        if (protectionFailure != null) {
+            Chat.send(plugin, player, "<error>" + protectionFailure);
             return false;
         }
         plugin.getBackService().record(player, player.getLocation());

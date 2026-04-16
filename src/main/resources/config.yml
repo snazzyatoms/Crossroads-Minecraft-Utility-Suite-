@@ -101,6 +101,19 @@ rtp:
   max-attempts: 12
   disabled-worlds: []
 
+protection:
+  enabled: true
+  teleport-respect-entry: true
+  rtp-avoid-protected-areas: true
+  providers:
+    aegisguard: true
+    worldguard: true
+    griefprevention: true
+    lands: true
+    residence: true
+    towny: true
+    plotsquared: true
+
 aegisguard:
   teleport-respect-entry: true
   rtp-avoid-protected-plots: true

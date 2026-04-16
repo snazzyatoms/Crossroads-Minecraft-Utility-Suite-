@@ -12,7 +12,7 @@
 
 **Crossroads is a modern Essentials-style server-core plugin for Paper and Spigot servers, built to cover everyday utility, teleport flow, moderation, persistence, and staff operations in one polished package.**
 
-Homes, warps, spawn profiles, teleport requests, mail, nicknames, kits, moderation tools, staff inspection, text pages, PlaceholderAPI support, Coffers-first economy integration, AegisGuard compatibility, and migration tooling all ship together in `0.1.0`.
+Homes, warps, spawn profiles, teleport requests, mail, nicknames, kits, moderation tools, staff inspection, text pages, PlaceholderAPI support, Coffers-first economy integration, broad protection-plugin compatibility, and migration tooling all ship together in `0.1.0`.
 
 </div>
 
@@ -27,7 +27,8 @@ Homes, warps, spawn profiles, teleport requests, mail, nicknames, kits, moderati
 - GUI warp and kit menus plus clickable Crossroads signs
 - Staff tools, moderation logs, temp bans, jails, shadow mute, warning categories, and staff notes
 - PlaceholderAPI support for scoreboards, chat, menus, signs, and TAB setups
-- AegisGuard `1.2.7` compatibility with plot-aware teleports, RTP avoidance, placeholders, and optional ClaimBlocks-backed costs
+- Protection compatibility across AegisGuard, WorldGuard, GriefPrevention, Lands, Residence, Towny, and PlotSquared
+- AegisGuard `1.2.7` extras with plot-aware placeholders and optional ClaimBlocks-backed costs
 - Coffers-first economy support with Vault-compatible fallback providers
 - Essentials import for homes, warps, spawn, and nicknames
 
@@ -107,22 +108,37 @@ Economy-aware features currently include:
 - kit costs
 - PlaceholderAPI balance output
 
-## AegisGuard Compatibility
+## Protection Compatibility
 
-Crossroads now detects AegisGuard `1.2.7` at runtime without requiring a hard compile dependency.
+Crossroads now detects major protection plugins at runtime without requiring hard compile dependencies for each one.
 
-When AegisGuard is present, Crossroads can:
+Current built-in adapters cover:
 
-- respect protected-plot entry rules for Crossroads teleports
-- keep `/rtp` out of protected plots
-- expose AegisGuard plot and ClaimBlocks placeholders
-- use AegisGuard ClaimBlocks as an optional Crossroads cost source
+- AegisGuard
+- WorldGuard
+- GriefPrevention
+- Lands
+- Residence
+- Towny
+- PlotSquared
+
+Crossroads uses those integrations to:
+
+- stop Crossroads teleports from dropping players into claims or regions they should not enter
+- keep `/rtp` away from protected areas when enabled
+- surface detected protection providers in startup diagnostics, `/crossroads about`, and PlaceholderAPI
 
 Relevant config keys:
 
-- `economy.mode: money` or `economy.mode: aegis_claim_blocks`
-- `aegisguard.teleport-respect-entry`
-- `aegisguard.rtp-avoid-protected-plots`
+- `protection.enabled`
+- `protection.teleport-respect-entry`
+- `protection.rtp-avoid-protected-areas`
+- `protection.providers.*`
+
+AegisGuard still gets additional native extras on top:
+
+- AegisGuard plot and ClaimBlocks placeholders
+- optional `economy.mode: aegis_claim_blocks`
 
 ---
 
@@ -229,6 +245,6 @@ plugins/Crossroads/modules
 
 - Tested compile target: Java 17
 - Server API target: Spigot/Paper `1.16.5+`
-- Optional integrations: AegisGuard, Coffers, Vault, PlaceholderAPI
+- Optional integrations: AegisGuard, WorldGuard, GriefPrevention, Lands, Residence, Towny, PlotSquared, Coffers, Vault, PlaceholderAPI
 
 The current packaged release jar is [crossroads-0.1.0.jar](/Users/kai/Documents/GitHub/Crossroads/target/crossroads-0.1.0.jar).
