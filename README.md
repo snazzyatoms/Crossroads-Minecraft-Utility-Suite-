@@ -128,6 +128,13 @@ Crossroads uses those integrations to:
 - keep `/rtp` away from protected areas when enabled
 - surface detected protection providers in startup diagnostics, `/crossroads about`, and PlaceholderAPI
 
+Useful placeholders for this system include:
+
+- `crossroads_protection_plugins`
+- `crossroads_protection_count`
+- `crossroads_protection_here`
+- `crossroads_protection_here_plugin`
+
 Relevant config keys:
 
 - `protection.enabled`
