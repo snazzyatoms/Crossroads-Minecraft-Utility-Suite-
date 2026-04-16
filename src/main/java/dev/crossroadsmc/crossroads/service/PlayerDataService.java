@@ -39,4 +39,8 @@ public final class PlayerDataService {
             save(uuid);
         }
     }
+
+    public void clearCached(UUID uuid) {
+        cache.remove(uuid);
+    }
 }

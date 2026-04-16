@@ -7,9 +7,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -48,11 +50,22 @@ public final class KitService {
             try {
                 List<ItemStack> items = parseItems(kitSection);
                 List<String> commands = kitSection.getStringList("commands");
+                Set<String> allowedProfiles = normalizeList(kitSection.getStringList("world-profiles"));
+                if (allowedProfiles.isEmpty()) {
+                    allowedProfiles = normalizeList(kitSection.getStringList("worlds"));
+                }
+                Set<String> blockedProfiles = normalizeList(kitSection.getStringList("disabled-world-profiles"));
+                if (blockedProfiles.isEmpty()) {
+                    blockedProfiles = normalizeList(kitSection.getStringList("disabled-worlds"));
+                }
                 kits.put(key.toLowerCase(), new KitDefinition(
                     key.toLowerCase(),
                     kitSection.getString("display-name", key),
                     kitSection.getString("permission", ""),
                     kitSection.getLong("cooldown-seconds", 0L),
+                    kitSection.getDouble("cost", 0.0D),
+                    allowedProfiles,
+                    blockedProfiles,
                     items,
                     commands
                 ));
@@ -68,6 +81,13 @@ public final class KitService {
 
     public KitDefinition getKit(String key) {
         return kits.get(key.toLowerCase());
+    }
+
+    public Collection<KitDefinition> getAvailableKits(org.bukkit.entity.Player player, String profile) {
+        return kits.values().stream()
+            .filter(kit -> (kit.getPermission() == null || kit.getPermission().isBlank() || player.hasPermission(kit.getPermission())))
+            .filter(kit -> kit.isAvailableIn(profile))
+            .toList();
     }
 
     private List<ItemStack> parseItems(ConfigurationSection kitSection) {
@@ -166,5 +186,15 @@ public final class KitService {
 
         int amount = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
         return new ItemStack(material, Math.max(1, amount));
+    }
+
+    private Set<String> normalizeList(List<String> values) {
+        Set<String> normalized = new HashSet<>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                normalized.add(value.toLowerCase());
+            }
+        }
+        return normalized;
     }
 }

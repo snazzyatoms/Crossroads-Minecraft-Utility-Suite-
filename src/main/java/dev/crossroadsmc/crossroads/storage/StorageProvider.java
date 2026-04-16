@@ -6,6 +6,7 @@ import dev.crossroadsmc.crossroads.model.SavedLocation;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 public interface StorageProvider extends AutoCloseable {
     void initialize() throws Exception;
@@ -25,6 +26,10 @@ public interface StorageProvider extends AutoCloseable {
     void appendModerationLog(ModerationLogEntry entry);
 
     List<ModerationLogEntry> loadModerationLogs(UUID targetUuid, String targetName, int limit);
+
+    YamlConfiguration loadDocument(String key);
+
+    void saveDocument(String key, YamlConfiguration document);
 
     StorageType getType();
 

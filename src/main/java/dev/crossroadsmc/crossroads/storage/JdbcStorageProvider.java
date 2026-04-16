@@ -264,6 +264,43 @@ public final class JdbcStorageProvider implements StorageProvider {
     }
 
     @Override
+    public YamlConfiguration loadDocument(String key) {
+        String sql = "SELECT data FROM crossroads_documents WHERE doc_key = ?";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, key.toLowerCase());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return new YamlConfiguration();
+                }
+                return PlayerDataCodec.fromText(resultSet.getString("data"));
+            }
+        } catch (SQLException | InvalidConfigurationException exception) {
+            plugin.getLogger().log(Level.WARNING, "Unable to load document " + key + ".", exception);
+            return new YamlConfiguration();
+        }
+    }
+
+    @Override
+    public void saveDocument(String key, YamlConfiguration document) {
+        String sql = "INSERT INTO crossroads_documents (doc_key, data) VALUES (?, ?) "
+            + "ON CONFLICT(doc_key) DO UPDATE SET data = excluded.data";
+        if (type == StorageType.MYSQL) {
+            sql = "INSERT INTO crossroads_documents (doc_key, data) VALUES (?, ?) "
+                + "ON DUPLICATE KEY UPDATE data = VALUES(data)";
+        }
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, key.toLowerCase());
+            statement.setString(2, PlayerDataCodec.toText(document));
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            plugin.getLogger().log(Level.WARNING, "Unable to save document " + key + ".", exception);
+        }
+    }
+
+    @Override
     public StorageType getType() {
         return type;
     }
@@ -292,6 +329,10 @@ public final class JdbcStorageProvider implements StorageProvider {
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS crossroads_server_state ("
                 + "state_key VARCHAR(64) PRIMARY KEY, "
                 + "value " + textColumn() + " NOT NULL)");
+
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS crossroads_documents ("
+                + "doc_key VARCHAR(96) PRIMARY KEY, "
+                + "data " + textColumn() + " NOT NULL)");
 
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS crossroads_moderation_logs ("
                 + "id " + autoIdColumn() + ", "

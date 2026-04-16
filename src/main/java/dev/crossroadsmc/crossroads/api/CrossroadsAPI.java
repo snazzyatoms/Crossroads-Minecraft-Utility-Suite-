@@ -1,9 +1,9 @@
 package dev.crossroadsmc.crossroads.api;
 
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
-import dev.crossroadsmc.crossroads.service.ModuleManager;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
+import dev.crossroadsmc.crossroads.service.ModuleManager;
 import org.bukkit.entity.Player;
 
 public final class CrossroadsAPI {
@@ -32,7 +32,7 @@ public final class CrossroadsAPI {
     }
 
     public static SavedLocation getWarp(String name) {
-        return getPlugin().getWarpService().getWarp(name);
+        return getPlugin().getWarpService().getWarp(PlayerData.GLOBAL_SCOPE, name);
     }
 
     public static ModuleManager getModuleManager() {

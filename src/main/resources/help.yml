@@ -1,0 +1,17 @@
+title: "<warn>Crossroads Help"
+default-page: general
+pages:
+  general:
+    lines:
+      - "<warn>/home <subtle>- teleport to a profile-aware saved home"
+      - "<warn>/warp <subtle>- open the warp menu or teleport directly"
+      - "<warn>/spawn <subtle>- travel to your current spawn profile"
+      - "<warn>/tpa <subtle>- request a player teleport"
+      - "<warn>/mail <subtle>- read or send offline mail"
+      - "<warn>/kit <subtle>- open the kit menu"
+  moderation:
+    lines:
+      - "<warn>/freeze, /mute, /warn <subtle>- immediate moderation actions"
+      - "<warn>/kick, /tempban, /jail <subtle>- stronger enforcement tools"
+      - "<warn>/shadowmute, /staffnote <subtle>- quiet moderation actions"
+      - "<warn>/stafflog <subtle>- review a player's moderation history"

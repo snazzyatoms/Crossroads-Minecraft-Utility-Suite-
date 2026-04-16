@@ -3,6 +3,8 @@ kits:
     display-name: "&aStarter"
     permission: crossroads.kit.starter
     cooldown-seconds: 21600
+    cost: 0.0
+    world-profiles: []
     commands:
       - "tell %player% Crossroads starter kit delivered."
     items:
@@ -28,6 +30,9 @@ kits:
     display-name: "&eBuilder"
     permission: crossroads.kit.builder
     cooldown-seconds: 43200
+    cost: 0.0
+    world-profiles:
+      - survival
     items:
       pickaxe:
         material: IRON_PICKAXE
@@ -49,6 +54,9 @@ kits:
     display-name: "&bAdventurer"
     permission: crossroads.kit.adventurer
     cooldown-seconds: 86400
+    cost: 0.0
+    disabled-worlds:
+      - world_the_end
     commands:
       - "xp add %player% 5 levels"
     items:

@@ -2,9 +2,11 @@ package dev.crossroadsmc.crossroads.listener;
 
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.PlayerData;
+import dev.crossroadsmc.crossroads.model.SavedLocation;
 import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -26,6 +28,16 @@ public final class ModerationListener implements Listener {
 
         PlayerData data = plugin.getModerationService().getPlayerData(event.getPlayer().getUniqueId());
         if (!data.isMuted()) {
+            if (data.isShadowMuted()) {
+                event.setCancelled(true);
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    Chat.send(plugin, event.getPlayer(), "<muted>[ShadowMute] <text>" + event.getMessage());
+                    plugin.getServer().getOnlinePlayers().stream()
+                        .filter(player -> plugin.getStaffService().isSocialSpyEnabled(player))
+                        .forEach(player -> Chat.send(plugin, player,
+                            "<muted>[ShadowMute] <warn>" + event.getPlayer().getName() + "<subtle>: <text>" + event.getMessage()));
+                });
+            }
             return;
         }
 
@@ -42,6 +54,18 @@ public final class ModerationListener implements Listener {
         }
 
         if (!plugin.getModerationService().isFrozen(event.getPlayer().getUniqueId())) {
+            if (!plugin.getModerationService().isJailed(event.getPlayer().getUniqueId())) {
+                return;
+            }
+            SavedLocation jail = plugin.getModerationService().getJailLocation(event.getPlayer().getUniqueId());
+            Location jailLocation = jail == null ? null : jail.toLocation();
+            if (jailLocation == null) {
+                return;
+            }
+            if (event.getTo() != null && event.getTo().distanceSquared(jailLocation) > Math.pow(plugin.getConfig().getDouble("moderation.jails.radius", 6.0D), 2)) {
+                event.setTo(jailLocation);
+                Chat.send(plugin, event.getPlayer(), "<error>You cannot leave jail.");
+            }
             return;
         }
         if (event.getFrom().getBlockX() == event.getTo().getBlockX()

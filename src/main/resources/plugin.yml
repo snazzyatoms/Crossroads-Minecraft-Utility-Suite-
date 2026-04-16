@@ -3,7 +3,8 @@ version: ${project.version}
 main: dev.crossroadsmc.crossroads.CrossroadsPlugin
 api-version: "1.16"
 author: Kai
-description: Release-ready Minecraft utility suite with homes, warps, moderation, storage backends, and module support.
+description: Release-ready Minecraft utility suite with teleport requests, moderation, storage backends, and rich server-core tools.
+softdepend: [Vault, PlaceholderAPI, Coffers, AegisGuard]
 
 commands:
   home:
@@ -39,6 +40,24 @@ commands:
   back:
     description: Return to your previous location.
     usage: /back
+  tpa:
+    description: Request teleport access to another player.
+    usage: /tpa <player>
+  tpahere:
+    description: Ask a player to teleport to you.
+    usage: /tpahere <player>
+  tpaccept:
+    description: Accept a teleport request.
+    usage: /tpaccept
+  tpdeny:
+    description: Deny a teleport request.
+    usage: /tpdeny
+  tpacancel:
+    description: Cancel your outgoing teleport request.
+    usage: /tpacancel
+  rtp:
+    description: Randomly teleport to a safe location.
+    usage: /rtp
   msg:
     description: Send a private message.
     usage: /msg <player> <message>
@@ -50,6 +69,12 @@ commands:
   ignore:
     description: Toggle private messages from another player.
     usage: /ignore <player>
+  mail:
+    description: Manage offline mail.
+    usage: /mail <send|read|clear|inbox>
+  nick:
+    description: Set your nickname.
+    usage: /nick <name|off>
   fly:
     description: Toggle flight mode.
     usage: /fly
@@ -75,14 +100,14 @@ commands:
     description: Unfreeze a player.
     usage: /unfreeze <player>
   mute:
-    description: Mute a player for a number of minutes.
-    usage: /mute <player> <minutes> [reason]
+    description: Mute a player for a duration.
+    usage: /mute <player> <duration> [reason]
   unmute:
     description: Remove a player's mute.
     usage: /unmute <player>
   warn:
-    description: Record a moderation warning.
-    usage: /warn <player> <reason>
+    description: Record a categorized moderation warning.
+    usage: /warn <player> [category] <reason>
   stafflog:
     description: View moderation history for a player.
     usage: /stafflog <player> [limit]
@@ -92,15 +117,48 @@ commands:
   seen:
     description: Check when a player was last online.
     usage: /seen <player>
+  kick:
+    description: Kick a player from the server.
+    usage: /kick <player> [reason]
+  tempban:
+    description: Ban a player for a duration.
+    usage: /tempban <player> <duration> [reason]
+  unban:
+    description: Remove a player's Crossroads ban.
+    usage: /unban <player>
+  jail:
+    description: Jail a player.
+    usage: /jail <player> <jail> [duration] [reason]
+  unjail:
+    description: Release a player from jail.
+    usage: /unjail <player>
+  setjail:
+    description: Create a jail point.
+    usage: /setjail <name>
+  shadowmute:
+    description: Toggle shadow mute for a player.
+    usage: /shadowmute <player>
+  staffnote:
+    description: Add a private staff note to a player's history.
+    usage: /staffnote <player> <note>
   kit:
     description: Claim or list available kits.
     usage: /kit [name]
   rules:
     description: View the server rules.
     usage: /rules
+  motd:
+    description: View the message of the day.
+    usage: /motd
+  help:
+    description: View Crossroads help pages.
+    usage: /help [page]
+  info:
+    description: View Crossroads info pages.
+    usage: /info [page]
   crossroads:
     description: Crossroads admin command.
-    usage: /crossroads [reload|backup create|about|modules]
+    usage: /crossroads [reload|backup create|about|modules|import essentials]
     aliases: [cr]
 
 permissions:
@@ -114,7 +172,7 @@ permissions:
     description: Use warp commands.
     default: true
   crossroads.spawn:
-    description: Use spawn commands.
+    description: Use spawn and teleport request commands.
     default: true
   crossroads.back:
     description: Use /back.
@@ -125,6 +183,9 @@ permissions:
   crossroads.kit:
     description: Use kit commands.
     default: true
+  crossroads.cooldown.bypass:
+    description: Bypass Crossroads command cooldowns.
+    default: op
   crossroads.kit.starter:
     description: Claim the starter kit.
     default: true
@@ -136,6 +197,9 @@ permissions:
     default: true
   crossroads.rules:
     description: View server rules.
+    default: true
+  crossroads.teleport:
+    description: Use teleport request commands.
     default: true
   crossroads.staff:
     description: Use staff utility commands.

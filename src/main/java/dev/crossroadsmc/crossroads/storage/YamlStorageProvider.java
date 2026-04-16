@@ -25,6 +25,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 public final class YamlStorageProvider implements StorageProvider {
     private final CrossroadsPlugin plugin;
     private final File playersDirectory;
+    private final File documentsDirectory;
     private final File warpsFile;
     private final File spawnFile;
     private final File moderationLogsFile;
@@ -33,6 +34,7 @@ public final class YamlStorageProvider implements StorageProvider {
     public YamlStorageProvider(CrossroadsPlugin plugin) {
         this.plugin = plugin;
         this.playersDirectory = new File(plugin.getDataFolder(), "players");
+        this.documentsDirectory = new File(plugin.getDataFolder(), "documents");
         this.warpsFile = new File(plugin.getDataFolder(), "warps.yml");
         this.spawnFile = new File(plugin.getDataFolder(), "spawn.yml");
         this.moderationLogsFile = new File(plugin.getDataFolder(), "moderation-logs.yml");
@@ -42,6 +44,9 @@ public final class YamlStorageProvider implements StorageProvider {
     public void initialize() {
         if (!playersDirectory.exists()) {
             playersDirectory.mkdirs();
+        }
+        if (!documentsDirectory.exists()) {
+            documentsDirectory.mkdirs();
         }
     }
 
@@ -165,6 +170,27 @@ public final class YamlStorageProvider implements StorageProvider {
     }
 
     @Override
+    public YamlConfiguration loadDocument(String key) {
+        File file = documentFile(key);
+        if (!file.exists()) {
+            return new YamlConfiguration();
+        }
+
+        synchronized (ioLock) {
+            return YamlConfiguration.loadConfiguration(file);
+        }
+    }
+
+    @Override
+    public void saveDocument(String key, YamlConfiguration document) {
+        try {
+            saveYamlAtomically(document, documentFile(key));
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.WARNING, "Unable to save document " + key + ".", exception);
+        }
+    }
+
+    @Override
     public StorageType getType() {
         return StorageType.YAML;
     }
@@ -208,5 +234,10 @@ public final class YamlStorageProvider implements StorageProvider {
                 Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
             }
         }
+    }
+
+    private File documentFile(String key) {
+        String safeName = key.toLowerCase().replaceAll("[^a-z0-9._-]", "_");
+        return new File(documentsDirectory, safeName + ".yml");
     }
 }
