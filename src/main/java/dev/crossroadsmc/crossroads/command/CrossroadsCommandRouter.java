@@ -540,7 +540,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 Chat.send(plugin, player, "<error>Usage: <warn>/mail send <player> <message>");
                 return true;
             }
-            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+            OfflinePlayer target = requireKnownOfflinePlayer(player, args[1]);
+            if (target == null) {
+                return true;
+            }
             if (target.getUniqueId().equals(player.getUniqueId())) {
                 Chat.send(plugin, player, "<error>You cannot mail yourself.");
                 return true;
@@ -856,7 +859,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/unfreeze <player>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         plugin.getModerationService().unfreeze(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
             Chat.send(plugin, target.getPlayer(), "<success>You are no longer frozen.");
@@ -898,7 +904,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/unmute <player>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         plugin.getModerationService().unmute(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
             Chat.send(plugin, target.getPlayer(), "<success>You have been unmuted.");
@@ -915,7 +924,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/warn <player> [category] <reason>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         String category = args.length > 2 ? args[1] : "general";
         String reason = args.length > 2
             ? String.join(" ", Arrays.copyOfRange(args, 2, args.length))
@@ -936,7 +948,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/stafflog <player> [limit]");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         int limit = 10;
         if (args.length > 1) {
             try {
@@ -967,7 +982,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         if (target.isOnline()) {
             Chat.send(plugin, sender, "<warn>" + target.getName() + " <success>is online right now.");
             return true;
@@ -1010,7 +1028,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/tempban <player> <duration> [reason]");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         long seconds = DurationParser.parseToSeconds(args[1]);
         if (seconds < 0L) {
             Chat.send(plugin, sender, "<error>Invalid duration.");
@@ -1030,7 +1051,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/unban <player>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         plugin.getModerationService().unban(sender, target);
         Chat.send(plugin, sender, "<success>Unbanned <warn>" + target.getName() + "<success>.");
         return true;
@@ -1077,7 +1101,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/unjail <player>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         plugin.getModerationService().unjail(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
             Chat.send(plugin, target.getPlayer(), "<success>You have been released from jail.");
@@ -1108,7 +1135,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/shadowmute <player>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         boolean enabled = !plugin.getModerationService().isShadowMuted(target.getUniqueId());
         plugin.getModerationService().shadowMute(sender, target, enabled);
         Chat.send(plugin, sender, enabled
@@ -1125,7 +1155,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             Chat.send(plugin, sender, "<error>Usage: <warn>/staffnote <player> <note>");
             return true;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[0]);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
         String note = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         plugin.getModerationService().addStaffNote(sender, target, note);
         Chat.send(plugin, sender, "<success>Staff note added for <warn>" + target.getName() + "<success>.");
@@ -1439,6 +1472,35 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 .filter(Objects::nonNull)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    private OfflinePlayer requireKnownOfflinePlayer(CommandSender sender, String input) {
+        OfflinePlayer target = resolveKnownOfflinePlayer(input);
+        if (target != null) {
+            return target;
+        }
+        Chat.send(plugin, sender, "<error>No known player named <warn>" + input + "<error> was found.");
+        return null;
+    }
+
+    private OfflinePlayer resolveKnownOfflinePlayer(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+
+        Player online = plugin.getServer().getPlayerExact(input);
+        if (online != null) {
+            return online;
+        }
+
+        String lowered = input.toLowerCase(Locale.ROOT);
+        return Arrays.stream(Bukkit.getOfflinePlayers())
+            .filter(player -> player.getName() != null)
+            .filter(player -> player.getName().equalsIgnoreCase(input)
+                || player.getName().toLowerCase(Locale.ROOT).startsWith(lowered))
+            .sorted(Comparator.comparingInt(player -> player.getName().equalsIgnoreCase(input) ? 0 : 1))
+            .findFirst()
+            .orElse(null);
     }
 
     private List<String> filterPrefix(Collection<String> values, String input) {

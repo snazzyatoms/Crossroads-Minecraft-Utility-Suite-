@@ -2,68 +2,99 @@
 
 <div align="center">
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-Plugin-00C853?style=for-the-badge&logo=minecraft&logoColor=white)](https://minecraft.net)
+[![Minecraft](https://img.shields.io/badge/Minecraft-Utility%20Suite-00C853?style=for-the-badge&logo=minecraft&logoColor=white)](https://minecraft.net)
 [![Paper / Spigot](https://img.shields.io/badge/Paper%20%2F%20Spigot-1.16.5%2B-2196F3?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io)
-[![Version](https://img.shields.io/badge/Version-0.1.0-F57C00?style=for-the-badge)](/Users/kai/Documents/GitHub/Crossroads/pom.xml)
+[![Version](https://img.shields.io/badge/Version-0.2.0-F57C00?style=for-the-badge)](./pom.xml)
 [![Storage](https://img.shields.io/badge/Storage-YAML%20%7C%20SQLite%20%7C%20MySQL-4CAF50?style=for-the-badge)](#storage)
-[![License](https://img.shields.io/badge/License-MIT-9C27B0?style=for-the-badge&logo=mit&logoColor=white)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-263238?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](./LICENSE)
 
-# Crossroads
+# Crossroads Minecraft Utility Suite
 
-**Crossroads is a modern Essentials-style server-core plugin for Paper and Spigot servers, built to cover everyday utility, teleport flow, moderation, persistence, and staff operations in one polished package.**
+Crossroads is a server-core utility suite for Paper and Spigot servers. It is designed to cover the daily server layer that most communities end up piecing together from multiple plugins: homes, warps, spawn, kits, staff tooling, moderation, messaging, text pages, storage, integrations, and extension hooks.
 
-Homes, warps, spawn profiles, teleport requests, mail, nicknames, kits, moderation tools, staff inspection, text pages, PlaceholderAPI support, Coffers-first economy integration, broad protection-plugin compatibility, and migration tooling all ship together in `0.1.0`.
+The goal is not to clone Essentials. The goal is to be cleaner to operate, easier to extend, safer to integrate, and more opinionated about modern server workflows.
 
 </div>
 
 ---
 
-## Why Crossroads
+## What Crossroads is aiming to be
 
-- Per-world profiles for homes, warps, spawn points, and kit availability
-- Persistent player data across YAML, SQLite, and MySQL
-- Teleport requests, `/back`, `/rtp`, and configurable command cooldowns
-- Offline mail, nickname support, MOTD, help, and info text files
-- GUI warp and kit menus plus clickable Crossroads signs
-- Staff tools, moderation logs, temp bans, jails, shadow mute, warning categories, and staff notes
-- PlaceholderAPI support for scoreboards, chat, menus, signs, and TAB setups
-- Protection compatibility across AegisGuard, WorldGuard, GriefPrevention, Lands, Residence, Towny, and PlotSquared
-- AegisGuard `1.2.7` extras with plot-aware placeholders and optional ClaimBlocks-backed costs
-- Coffers-first economy support with Vault-compatible fallback providers
-- Essentials import for homes, warps, spawn, and nicknames
+Crossroads is built around four design goals:
+
+- one suite instead of a stack of loosely connected utility plugins
+- operationally clean startup, reload, storage, and backup behavior
+- extension-first architecture through API and SPI artifacts
+- practical integration with economy, protection, placeholder, and migration ecosystems
+
+That means the project should feel strong in three places at the same time:
+
+- player quality-of-life features
+- staff and moderation workflows
+- server-owner configuration and extensibility
 
 ---
 
-## Feature Set
+## What ships in this repository today
 
-### Player Utility
+### Core player utility
 
-- Named homes with scope support like `global:home` or per-world profile homes
-- Profile-aware warps and spawn points
-- `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny`, `/tpacancel`
-- `/back` tracking with persistent storage
-- `/rtp` with radius, attempts, and world restrictions
-- `/msg`, `/reply`, `/ignore`, and offline `/mail`
-- `/nick`, `/motd`, `/help`, `/info`, `/rules`
-- Rich kits with cooldowns, permissions, costs, and world-profile restrictions
+- named homes with world-profile support
+- warps, spawn management, `/back`, and teleport request flow
+- random teleport with configurable limits and restrictions
+- kits with permissions, cooldowns, costs, icons, and profile restrictions
+- private messaging, reply, ignore, and offline mail
+- nicknames plus text-page powered `/motd`, `/help`, `/info`, and `/rules`
 
-### Staff & Moderation
+### Staff and moderation
 
-- `/fly`, `/vanish`, `/staffmode`, `/socialspy`
-- `/invsee` and `/endersee`
-- `/freeze`, `/mute`, `/warn`, `/seen`
-- `/kick`, `/tempban`, `/unban`
-- `/setjail`, `/jail`, `/unjail`
-- `/shadowmute` and `/staffnote`
-- Persistent moderation history with `/stafflog` and `/history`
+- `/fly`, `/vanish`, `/staffmode`, and `/socialspy`
+- `/invsee`, `/endersee`, and `/seen`
+- `/freeze`, `/mute`, `/warn`, `/kick`, `/tempban`, `/unban`
+- jail tools, shadow mute, staff notes, and moderation history
 
-### Server Integration
+### Integration surface
 
-- GUI-driven warp and kit browsing
-- Crossroads-powered interaction signs for warps, spawn, RTP, MOTD, help, and info
-- PlaceholderAPI placeholders for nicknames, unread mail, storage/economy status, homes, jail state, mute state, and balances
-- Extension SPI and module folder support
-- Essentials import through `/crossroads import essentials`
+- PlaceholderAPI support
+- Coffers-first economy resolution with Vault fallback
+- AegisGuard-aware extras
+- protection compatibility for WorldGuard, GriefPrevention, Lands, Residence, Towny, and PlotSquared
+- Essentials migration entry point
+
+---
+
+## Why this is distinct from Essentials-style suites
+
+Crossroads is intended to differentiate on architecture and operability, not just command count.
+
+- profile-aware data instead of purely flat global behavior
+- modular extension points instead of keeping everything closed in one monolith
+- better startup diagnostics and less noisy default behavior
+- cleaner persistence choices for small servers and networked deployments
+- stronger integration posture for modern protection and placeholder stacks
+
+---
+
+## Architecture
+
+This repository currently produces three artifact types from one codebase:
+
+- main plugin jar: the runnable Crossroads plugin
+- API jar: public-facing integration classes under [`src/main/java/dev/crossroadsmc/crossroads/api`](./src/main/java/dev/crossroadsmc/crossroads/api)
+- SPI jar: module-facing contracts under [`src/main/java/dev/crossroadsmc/crossroads/api/module`](./src/main/java/dev/crossroadsmc/crossroads/api/module)
+
+Important entry points:
+
+- [`CrossroadsPlugin.java`](./src/main/java/dev/crossroadsmc/crossroads/CrossroadsPlugin.java)
+- [`CrossroadsAPI.java`](./src/main/java/dev/crossroadsmc/crossroads/api/CrossroadsAPI.java)
+- [`CrossroadsModule.java`](./src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModule.java)
+- [`CrossroadsModuleContext.java`](./src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModuleContext.java)
+
+External module jars are loaded from:
+
+```text
+plugins/Crossroads/modules
+```
 
 ---
 
@@ -73,111 +104,33 @@ Crossroads supports three persistence modes:
 
 | Backend | Best fit |
 | --- | --- |
-| YAML | lightweight installs and small servers |
-| SQLite | single-server production setups |
+| YAML | lightweight servers and quick installs |
+| SQLite | single-node production servers |
 | MySQL | shared infrastructure and larger networks |
 
-Stored data includes:
+Stored state includes player data, homes, warps, spawn profiles, mail, kit cooldowns, moderation history, jails, and back locations.
 
-- homes by profile
-- command cooldowns
-- kit cooldowns
-- unread and read mail
-- nicknames
-- mute, freeze, ban, jail, and shadow mute state
-- staff notes and moderation logs
-- warps, spawn profiles, and jails
-- back locations
-
-Autosave is built in, and Crossroads flushes persistent state during normal shutdown as well.
+Primary persistence implementations live under [`src/main/java/dev/crossroadsmc/crossroads/storage`](./src/main/java/dev/crossroadsmc/crossroads/storage).
 
 ---
 
-## Economy Support
+## Configuration files
 
-Crossroads is ready for economy-backed costs and prefers **Coffers** first when its direct service is available.
+Bundled defaults live in [`src/main/resources`](./src/main/resources) and are provisioned into `plugins/Crossroads/` on first startup.
 
-If Coffers is not present, Crossroads falls back to any compatible **Vault** economy provider. That means you can use costs for teleports, RTP, and kits without locking the server into one economy stack.
+- [`config.yml`](./src/main/resources/config.yml)
+- [`kits.yml`](./src/main/resources/kits.yml)
+- [`motd.yml`](./src/main/resources/motd.yml)
+- [`help.yml`](./src/main/resources/help.yml)
+- [`info.yml`](./src/main/resources/info.yml)
 
-If AegisGuard is installed, Crossroads can also switch to `aegis_claim_blocks` mode so Crossroads costs are paid from AegisGuard ClaimBlocks instead of money.
-
-Economy-aware features currently include:
-
-- teleport costs
-- RTP costs
-- kit costs
-- PlaceholderAPI balance output
-
-## Protection Compatibility
-
-Crossroads now detects major protection plugins at runtime without requiring hard compile dependencies for each one.
-
-Current built-in adapters cover:
-
-- AegisGuard
-- WorldGuard
-- GriefPrevention
-- Lands
-- Residence
-- Towny
-- PlotSquared
-
-Crossroads uses those integrations to:
-
-- stop Crossroads teleports from dropping players into claims or regions they should not enter
-- keep `/rtp` away from protected areas when enabled
-- surface detected protection providers in startup diagnostics, `/crossroads about`, and PlaceholderAPI
-
-Useful placeholders for this system include:
-
-- `crossroads_protection_plugins`
-- `crossroads_protection_count`
-- `crossroads_protection_here`
-- `crossroads_protection_here_plugin`
-
-Relevant config keys:
-
-- `protection.enabled`
-- `protection.teleport-respect-entry`
-- `protection.rtp-avoid-protected-areas`
-- `protection.providers.*`
-
-AegisGuard still gets additional native extras on top:
-
-- AegisGuard plot and ClaimBlocks placeholders
-- optional `economy.mode: aegis_claim_blocks`
-
----
-
-## Customization
-
-Crossroads is built to be themed and trimmed to fit a server instead of forcing every feature on every install.
-
-Server owners can customize:
-
-- semantic message colors and prefix formatting
-- feature toggles for major systems
-- per-world/profile behavior
-- command cooldowns
-- teleport request timeouts
-- RTP settings
-- jail radius
-- MOTD, help, and info pages from dedicated text files
-- kit permissions, costs, cooldowns, and profile restrictions
-
-Main configurable resources:
-
-- [config.yml](/Users/kai/Documents/GitHub/Crossroads/src/main/resources/config.yml)
-- [kits.yml](/Users/kai/Documents/GitHub/Crossroads/src/main/resources/kits.yml)
-- [motd.yml](/Users/kai/Documents/GitHub/Crossroads/src/main/resources/motd.yml)
-- [help.yml](/Users/kai/Documents/GitHub/Crossroads/src/main/resources/help.yml)
-- [info.yml](/Users/kai/Documents/GitHub/Crossroads/src/main/resources/info.yml)
+Crossroads now treats existing bundled YAML files as normal server state. If `kits.yml` already exists, startup leaves it alone silently instead of logging repeated warnings.
 
 ---
 
 ## Commands
 
-### Core Travel
+### Travel
 
 - `/home`, `/sethome`, `/delhome`, `/homes`
 - `/warp`, `/setwarp`, `/delwarp`, `/warps`
@@ -185,14 +138,14 @@ Main configurable resources:
 - `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny`, `/tpacancel`
 - `/rtp`
 
-### Social & Utility
+### Social and utility
 
 - `/msg`, `/reply`, `/ignore`, `/mail`
 - `/nick`
 - `/kit`
 - `/motd`, `/help`, `/info`, `/rules`
 
-### Staff & Moderation
+### Staff and moderation
 
 - `/fly`, `/vanish`, `/staffmode`, `/socialspy`
 - `/invsee`, `/endersee`, `/seen`
@@ -210,48 +163,44 @@ Main configurable resources:
 - `/crossroads backup create`
 - `/crossroads import essentials`
 
+Command registration is defined in [`plugin.yml`](./src/main/resources/plugin.yml) and routed through [`CrossroadsCommandRouter.java`](./src/main/java/dev/crossroadsmc/crossroads/command/CrossroadsCommandRouter.java).
+
 ---
 
-## Import & Migration
+## Build
 
-Crossroads includes an Essentials import flow for admins moving to a cleaner server-core stack.
+Crossroads targets Java 17 and Spigot/Paper `1.16.5+`.
 
-Current import support covers:
-
-- player homes
-- server warps
-- spawn
-- nicknames
-
-Use:
+Typical package flow:
 
 ```text
-/crossroads import essentials
+mvn clean package
 ```
+
+The Maven build is configured in [`pom.xml`](./pom.xml).
+
+Build output is intentionally kept outside the repository so the project root stays clean for GitHub:
+
+- intermediate Maven build files: `D:\Crossroads Build\crossroads`
+- release jars and checksums: `D:\Crossroads Release Jars\crossroads-0.2.0`
 
 ---
 
-## API & Modules
+## Roadmap to rival the bigger suites
 
-Crossroads exposes:
+The current codebase already covers a meaningful utility surface, but the next quality jump should come from depth, not feature spam.
 
-- [CrossroadsAPI.java](/Users/kai/Documents/GitHub/Crossroads/src/main/java/dev/crossroadsmc/crossroads/api/CrossroadsAPI.java)
-- [HomeTeleportEvent.java](/Users/kai/Documents/GitHub/Crossroads/src/main/java/dev/crossroadsmc/crossroads/api/event/HomeTeleportEvent.java)
-- [CrossroadsModule.java](/Users/kai/Documents/GitHub/Crossroads/src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModule.java)
-- [CrossroadsModuleContext.java](/Users/kai/Documents/GitHub/Crossroads/src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModuleContext.java)
+Recommended priorities:
 
-External module jars can be placed in:
-
-```text
-plugins/Crossroads/modules
-```
+- complete command parity for the features already present in storage and service layers
+- add stronger permission granularity and audit visibility for staff actions
+- formalize import and migration tooling beyond Essentials basics
+- split compatibility concerns cleanly if modern and legacy server lines need separate build targets
+- expand the module ecosystem so server owners can extend Crossroads without forking core
+- harden startup, reload, and config migration paths so production servers stay quiet and predictable
 
 ---
 
-## Compatibility Notes
+## License
 
-- Tested compile target: Java 17
-- Server API target: Spigot/Paper `1.16.5+`
-- Optional integrations: AegisGuard, WorldGuard, GriefPrevention, Lands, Residence, Towny, PlotSquared, Coffers, Vault, PlaceholderAPI
-
-The current packaged release jar is [crossroads-0.1.0.jar](/Users/kai/Documents/GitHub/Crossroads/target/crossroads-0.1.0.jar).
+Crossroads is released under the [MIT License](./LICENSE).

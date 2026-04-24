@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
@@ -155,7 +156,7 @@ public final class KitService {
         ConfigurationSection enchantments = section.getConfigurationSection("enchants");
         if (enchantments != null) {
             for (String key : enchantments.getKeys(false)) {
-                Enchantment enchantment = Enchantment.getByName(key.toUpperCase());
+                Enchantment enchantment = resolveEnchantment(key);
                 if (enchantment == null) {
                     plugin.getLogger().warning("Unknown enchantment in kits.yml: " + key);
                     continue;
@@ -186,6 +187,55 @@ public final class KitService {
 
         int amount = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
         return new ItemStack(material, Math.max(1, amount));
+    }
+
+    private Enchantment resolveEnchantment(String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) {
+            return null;
+        }
+
+        String normalized = normalizeEnchantmentKey(rawKey);
+        NamespacedKey namespacedKey = normalized.contains(":")
+            ? NamespacedKey.fromString(normalized)
+            : NamespacedKey.minecraft(normalized);
+        if (namespacedKey != null) {
+            Enchantment enchantment = Enchantment.getByKey(namespacedKey);
+            if (enchantment != null) {
+                return enchantment;
+            }
+        }
+
+        for (Enchantment enchantment : Enchantment.values()) {
+            if (enchantment.getKey().getKey().equalsIgnoreCase(normalized)) {
+                return enchantment;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeEnchantmentKey(String rawKey) {
+        String normalized = rawKey.trim().toLowerCase().replace(' ', '_');
+        return switch (normalized) {
+            case "protection_environmental" -> "protection";
+            case "protection_fire" -> "fire_protection";
+            case "protection_fall" -> "feather_falling";
+            case "protection_explosions" -> "blast_protection";
+            case "protection_projectiles" -> "projectile_protection";
+            case "oxygen" -> "respiration";
+            case "water_worker" -> "aqua_affinity";
+            case "damage_all" -> "sharpness";
+            case "damage_undead" -> "smite";
+            case "damage_arthropods" -> "bane_of_arthropods";
+            case "loot_bonus_mobs" -> "looting";
+            case "dig_speed" -> "efficiency";
+            case "durability" -> "unbreaking";
+            case "loot_bonus_blocks" -> "fortune";
+            case "arrow_damage" -> "power";
+            case "arrow_knockback" -> "punch";
+            case "arrow_fire" -> "flame";
+            case "arrow_infinite" -> "infinity";
+            default -> normalized;
+        };
     }
 
     private Set<String> normalizeList(List<String> values) {

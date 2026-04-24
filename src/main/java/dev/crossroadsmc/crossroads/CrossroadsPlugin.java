@@ -26,6 +26,10 @@ import dev.crossroadsmc.crossroads.service.TextPageService;
 import dev.crossroadsmc.crossroads.service.WarpService;
 import dev.crossroadsmc.crossroads.service.WelcomeService;
 import dev.crossroadsmc.crossroads.service.WorldProfileService;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import dev.crossroadsmc.crossroads.storage.StorageManager;
 import java.util.Arrays;
 import java.util.List;
@@ -62,10 +66,10 @@ public final class CrossroadsPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        saveResource("kits.yml", false);
-        saveResource("motd.yml", false);
-        saveResource("help.yml", false);
-        saveResource("info.yml", false);
+        ensureBundledResource("kits.yml");
+        ensureBundledResource("motd.yml");
+        ensureBundledResource("help.yml");
+        ensureBundledResource("info.yml");
 
         this.storageManager = new StorageManager(this);
         storageManager.initialize();
@@ -244,6 +248,33 @@ public final class CrossroadsPlugin extends JavaPlugin {
 
     public boolean isFeatureEnabled(String featureKey) {
         return getConfig().getBoolean("features." + featureKey, true);
+    }
+
+    private void ensureBundledResource(String resourcePath) {
+        Path destination = getDataFolder().toPath().resolve(resourcePath);
+        if (Files.exists(destination)) {
+            return;
+        }
+
+        try {
+            Path parent = destination.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            try (InputStream inputStream = getResource(resourcePath)) {
+                if (inputStream == null) {
+                    getLogger().warning("Bundled resource " + resourcePath + " is missing from the jar.");
+                    return;
+                }
+
+                Files.copy(inputStream, destination);
+            }
+
+            getLogger().info("Created default " + resourcePath + " at plugins/" + getDataFolder().getName() + "/" + resourcePath + ".");
+        } catch (IOException exception) {
+            getLogger().log(Level.WARNING, "Unable to provision bundled resource " + resourcePath + ".", exception);
+        }
     }
 
     private void registerCommands() {

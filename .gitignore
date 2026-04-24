@@ -1,4 +1,5 @@
 target/
 .m2/
+m2repo/
 *.log
 .DS_Store
