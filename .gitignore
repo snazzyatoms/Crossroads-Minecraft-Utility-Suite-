@@ -1,5 +1,7 @@
 target/
 target-build/
+.build/
+.release/
 .m2/
 m2repo/
 *.log
