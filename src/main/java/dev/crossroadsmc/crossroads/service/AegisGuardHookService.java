@@ -127,8 +127,9 @@ public final class AegisGuardHookService {
 
         String name = stringMethod(plot, "getPlotName");
         String owner = stringMethod(plot, "getOwnerName");
-        return "AegisGuard blocked that teleport. Plot: " + (name == null || name.isBlank() ? "Unnamed Plot" : name)
-            + " | Owner: " + (owner == null || owner.isBlank() ? "Unknown" : owner);
+        return plugin.getLanguageService().get(player, "protection.aegisguard-blocked",
+            "%plot%", name == null || name.isBlank() ? "Unnamed Plot" : name,
+            "%owner%", owner == null || owner.isBlank() ? "Unknown" : owner);
     }
 
     public boolean isProtected(Location location) {

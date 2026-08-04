@@ -1,6 +1,10 @@
 warps:
   title: 'Warps de Crossroads'
   lore: 'Click to teleport'
+  none: '<subtle>No hay warps disponibles en este perfil.'
+  lore-teleport: '<success>Click to teleport'
 kits:
   title: 'Kits de Crossroads'
   lore: 'Click to claim'
+  none: '<subtle>No hay kits disponibles en este perfil.'
+  lore-claim: '<success>Click to claim'

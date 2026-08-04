@@ -46,8 +46,9 @@ public final class TextPageService {
             : page.toLowerCase(Locale.ROOT);
         List<String> lines = resolvePage(help, effectivePage, viewer);
         if (lines.isEmpty()) {
-            Chat.send(plugin, sender, "<error>Unknown help page <warn>" + effectivePage + "<error>.");
-            Chat.send(plugin, sender, "<subtle>Available pages: <text>" + String.join(", ", availablePages(help)));
+            plugin.getLanguageService().send(sender, "welcome.text.unknown-help", "%page%", effectivePage);
+            plugin.getLanguageService().send(sender, "welcome.text.available-pages",
+                "%pages%", String.join(", ", availablePages(help)));
             return;
         }
         sendLines(sender, lines, help.getString("title", "<warn>Crossroads Help") + " <subtle>(" + effectivePage + ")", viewer);
@@ -59,8 +60,9 @@ public final class TextPageService {
             : page.toLowerCase(Locale.ROOT);
         List<String> lines = resolvePage(info, effectivePage, viewer);
         if (lines.isEmpty()) {
-            Chat.send(plugin, sender, "<error>Unknown info page <warn>" + effectivePage + "<error>.");
-            Chat.send(plugin, sender, "<subtle>Available pages: <text>" + String.join(", ", availablePages(info)));
+            plugin.getLanguageService().send(sender, "welcome.text.unknown-info", "%page%", effectivePage);
+            plugin.getLanguageService().send(sender, "welcome.text.available-pages",
+                "%pages%", String.join(", ", availablePages(info)));
             return;
         }
         sendLines(sender, lines, info.getString("title", "<warn>Crossroads Info") + " <subtle>(" + effectivePage + ")", viewer);
@@ -76,7 +78,7 @@ public final class TextPageService {
 
     private void sendLines(CommandSender sender, List<String> lines, String title, Player viewer) {
         if (lines.isEmpty()) {
-            Chat.send(plugin, sender, "<subtle>No text has been configured yet.");
+            plugin.getLanguageService().send(sender, "welcome.text.empty");
             return;
         }
         Chat.send(plugin, sender, title);

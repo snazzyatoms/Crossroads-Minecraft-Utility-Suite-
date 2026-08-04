@@ -29,13 +29,14 @@ public final class MenuService {
         String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
         List<String> warps = new ArrayList<>(plugin.getWarpService().getAvailableWarpNames(profile));
         if (warps.isEmpty()) {
-            Chat.send(plugin, player, "<subtle>No warps are available from this profile.");
+            plugin.getLanguageService().send(player, "menus.warps.none");
             return;
         }
 
         int size = Math.min(54, Math.max(9, ((warps.size() - 1) / 9 + 1) * 9));
         CrossroadsMenuHolder holder = new CrossroadsMenuHolder(WARP_MENU);
-        Inventory inventory = Bukkit.createInventory(holder, size, "Crossroads Warps");
+        String title = Chat.color(plugin, plugin.getLanguageService().get(player, "menus.warps.title"));
+        Inventory inventory = Bukkit.createInventory(holder, size, title);
         holder.setInventory(inventory);
 
         for (int index = 0; index < warps.size() && index < size; index++) {
@@ -43,7 +44,7 @@ public final class MenuService {
             holder.setEntry(index, warp);
             inventory.setItem(index, buildItem(Material.ENDER_PEARL, "<accent>" + warp, List.of(
                 "<subtle>Profile: <text>" + profile,
-                "<success>Click to teleport"
+                plugin.getLanguageService().get(player, "menus.warps.lore-teleport")
             )));
         }
 
@@ -54,13 +55,14 @@ public final class MenuService {
         String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
         List<KitDefinition> kits = plugin.getKitService().getAvailableKits(player, profile).stream().toList();
         if (kits.isEmpty()) {
-            Chat.send(plugin, player, "<subtle>No kits are available from this profile.");
+            plugin.getLanguageService().send(player, "menus.kits.none");
             return;
         }
 
         int size = Math.min(54, Math.max(9, ((kits.size() - 1) / 9 + 1) * 9));
         CrossroadsMenuHolder holder = new CrossroadsMenuHolder(KIT_MENU);
-        Inventory inventory = Bukkit.createInventory(holder, size, "Crossroads Kits");
+        String title = Chat.color(plugin, plugin.getLanguageService().get(player, "menus.kits.title"));
+        Inventory inventory = Bukkit.createInventory(holder, size, title);
         holder.setInventory(inventory);
 
         for (int index = 0; index < kits.size() && index < size; index++) {
@@ -73,7 +75,7 @@ public final class MenuService {
             if (kit.getCost() > 0.0D) {
                 lore.add("<subtle>Cost: <text>" + plugin.getEconomyService().format(kit.getCost()));
             }
-            lore.add("<success>Click to claim");
+            lore.add(plugin.getLanguageService().get(player, "menus.kits.lore-claim"));
             inventory.setItem(index, buildItem(icon, "<accent>" + kit.getDisplayName(), lore));
         }
 

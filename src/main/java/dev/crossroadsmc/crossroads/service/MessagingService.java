@@ -30,13 +30,13 @@ public final class MessagingService {
 
     public boolean sendMessage(Player sender, Player recipient, String message) {
         if (moderationService.isMuted(sender.getUniqueId())) {
-            Chat.send(plugin, sender, "<error>You are muted and cannot send private messages right now.");
+            plugin.getLanguageService().send(sender, "social.msg.muted");
             return false;
         }
 
         PlayerData recipientData = playerDataService.get(recipient);
         if (recipientData.isIgnoring(sender.getUniqueId())) {
-            Chat.send(plugin, sender, "<error>That player is ignoring you.");
+            plugin.getLanguageService().send(sender, "social.msg.ignored");
             return false;
         }
 

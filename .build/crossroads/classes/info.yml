@@ -1,0 +1,11 @@
+title: "<warn>Crossroads Info"
+default-page: about
+pages:
+  about:
+    lines:
+      - "<accent>Crossroads <subtle>is a server-core plugin with teleport, utility, moderation, storage, and admin tooling."
+      - "<subtle>Storage backend: <text>%profile% <subtle>profiles are active per world."
+  storage:
+    lines:
+      - "<subtle>Crossroads supports YAML, SQLite, and MySQL persistence."
+      - "<subtle>Player data, mail, scoped homes, kit cooldowns, moderation state, warps, jails, and spawns are persisted."

@@ -21,3 +21,5 @@ language:
   unknown: '<error>Unknown language <warn>%language%<error>.'
   disabled: '<error>Per-player languages are disabled.'
 usage: '<error>Usage: <warn>/crossroads <reload|about|modules|backup|import|language|perms>'
+sign-created: '<success>Cartel de Crossroads creado.'
+sign-header: '<accent>[Crossroads]'

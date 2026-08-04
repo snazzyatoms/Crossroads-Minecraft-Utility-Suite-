@@ -7,8 +7,8 @@ import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -28,9 +28,13 @@ public final class PlayerLifecycleListener implements Listener {
             long remaining = data.getBannedUntil() == Long.MAX_VALUE
                 ? Long.MAX_VALUE
                 : Math.max(1L, (data.getBannedUntil() - System.currentTimeMillis()) / 1000L);
-            String durationText = remaining == Long.MAX_VALUE ? "permanently" : TimeFormatter.duration(remaining);
+            String durationText = remaining == Long.MAX_VALUE
+                ? plugin.getLanguageService().get(null, "moderation.tempban.permanent")
+                : TimeFormatter.duration(remaining);
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED,
-                Chat.color(plugin, "<error>You are banned <warn>" + durationText + "<error>. Reason: <text>" + data.getBanReason()));
+                plugin.getLanguageService().colorize(null, "moderation.tempban.message",
+                    "%duration%", durationText,
+                    "%reason%", data.getBanReason()));
         }
     }
 
@@ -54,7 +58,8 @@ public final class PlayerLifecycleListener implements Listener {
             player.setCustomName(Chat.color(plugin, data.getNickname()));
         }
         if (data.getUnreadMailCount() > 0) {
-            Chat.send(plugin, player, "<info>You have <warn>" + data.getUnreadMailCount() + "<info> unread mail messages.");
+            plugin.getLanguageService().send(player, "social.mail.unread",
+                "%count%", String.valueOf(data.getUnreadMailCount()));
         }
 
         if (data.isJailed()) {
@@ -62,7 +67,7 @@ public final class PlayerLifecycleListener implements Listener {
             Location jailLocation = jail == null ? null : jail.toLocation();
             if (jailLocation != null) {
                 player.teleport(jailLocation);
-                Chat.send(plugin, player, "<error>You are currently jailed.");
+                plugin.getLanguageService().send(player, "moderation.jail.active");
                 return;
             }
         }

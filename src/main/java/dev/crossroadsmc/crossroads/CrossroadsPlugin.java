@@ -93,9 +93,9 @@ public final class CrossroadsPlugin extends JavaPlugin {
         this.welcomeService = new WelcomeService(this);
         this.textPageService = new TextPageService(this);
         this.aegisGuardHookService = new AegisGuardHookService(this);
+        this.languageService = new LanguageService(this);
         this.protectionCompatibilityService = new ProtectionCompatibilityService(this, aegisGuardHookService);
         this.economyService = new EconomyService(this);
-        this.languageService = new LanguageService(this);
         this.permissionService = new PermissionService(this);
         this.menuService = new MenuService(this);
         this.importService = new ImportService(this);

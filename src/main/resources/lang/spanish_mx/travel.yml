@@ -21,11 +21,14 @@ warp:
   none-created: '<subtle>No warps have been created yet.'
   list: '<warn>Warps<subtle>: <text>%warps%'
   teleported: '<success>Teletransportado a <warn>%warp%<success>.'
+  unavailable: '<error>Ese warp ya no está disponible.'
+  sign-missing: '<error>That warp sign points nowhere.'
 spawn:
   missing: '<error>Spawn has not been configured yet.'
   world-unloaded: '<error>Spawn points to a world that is not loaded.'
   updated: '<success>Spawn profile <warn>%profile%<success> updated to <text>%location%'
   teleported: '<success>Teletransportado al spawn.'
+  unavailable: '<error>No spawn is available here.'
 back:
   missing: '<error>No previous location is available yet.'
   world-unloaded: '<error>Your back location points to a world that is not loaded.'
@@ -52,3 +55,5 @@ rtp:
   teleported: '<success>Randomly teleported.'
 teleport:
   cancelled: '<error>Your teleport was cancelled.'
+sign:
+  unsupported: '<error>That sign action is not supported.'

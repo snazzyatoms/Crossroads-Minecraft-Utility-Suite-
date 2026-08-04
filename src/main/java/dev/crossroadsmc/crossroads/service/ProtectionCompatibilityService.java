@@ -154,14 +154,10 @@ public final class ProtectionCompatibilityService {
     }
 
     private String blockedMessage(String providerName, String areaName, String ownerName) {
-        StringBuilder builder = new StringBuilder(providerName).append(" blocked that teleport.");
-        if (areaName != null && !areaName.isBlank()) {
-            builder.append(" Area: ").append(areaName);
-        }
-        if (ownerName != null && !ownerName.isBlank() && !"Unknown".equalsIgnoreCase(ownerName)) {
-            builder.append(" | Owner: ").append(ownerName);
-        }
-        return builder.toString();
+        return plugin.getLanguageService().get(null, "protection.blocked",
+            "%provider%", providerName == null || providerName.isBlank() ? "Protection" : providerName,
+            "%area%", areaName == null || areaName.isBlank() ? "Protected Area" : areaName,
+            "%owner%", ownerName == null || ownerName.isBlank() ? "Unknown" : ownerName);
     }
 
     private String playerName(UUID uuid) {

@@ -1,6 +1,8 @@
 msg:
   usage: '<error>Usage: <warn>/msg <player> <message>'
   self: '<error>Sending yourself a DM is not especially productive.'
+  muted: '<error>Estás silenciado y no puedes enviar mensajes privados.'
+  ignored: '<error>Ese jugador te está ignorando.'
 reply:
   usage: '<error>Usage: <warn>/reply <message>'
   none: '<error>Nobody has messaged you recently.'

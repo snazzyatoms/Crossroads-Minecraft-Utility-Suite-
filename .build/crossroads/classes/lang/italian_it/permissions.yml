@@ -1,0 +1,30 @@
+disabled: '<error>Crossroads permissions are disabled.'
+usage: '<error>Usage: <warn>/crperms <user|group|list|check|import>'
+no-permission: '<error>You do not have permission to manage Crossroads permissions.'
+user:
+  usage: '<error>Usage: <warn>/crperms user <player> <info|permission|parent|group>'
+  info: '<warn>%player% <subtle>| primary <text>%primary% <subtle>| groups <text>%groups%'
+  permission-set: '<success>Set <warn>%permission%<success> for <warn>%player%<success> to <text>%value%<success>.'
+  permission-unset: '<success>Removed <warn>%permission%<success> from <warn>%player%<success>.'
+  parent-add: '<success>Added group <warn>%group%<success> to <warn>%player%<success>.'
+  parent-remove: '<success>Removed group <warn>%group%<success> from <warn>%player%<success>.'
+  group-set: '<success>Primary group for <warn>%player%<success> set to <warn>%group%<success>.'
+group:
+  usage: '<error>Usage: <warn>/crperms group <name> <create|delete|info|permission|parent|meta>'
+  created: '<success>Created group <warn>%group%<success>.'
+  deleted: '<success>Deleted group <warn>%group%<success>.'
+  exists: '<error>Group <warn>%group%<error> already exists.'
+  missing: '<error>Unknown group <warn>%group%<error>.'
+  info: '<warn>%group% <subtle>| weight <text>%weight% <subtle>| parents <text>%parents%'
+  permission-set: '<success>Set <warn>%permission%<success> on group <warn>%group%<success> to <text>%value%<success>.'
+  permission-unset: '<success>Removed <warn>%permission%<success> from group <warn>%group%<success>.'
+  parent-add: '<success>Added parent <warn>%parent%<success> to <warn>%group%<success>.'
+  parent-remove: '<success>Removed parent <warn>%parent%<success> from <warn>%group%<success>.'
+  meta: '<success>Updated <warn>%group%<success> %field% to <text>%value%<success>.'
+list:
+  header: '<warn>Groups<subtle>: <text>%groups%'
+check:
+  result: '<info>%player% <subtle>has <warn>%permission%<subtle>: <text>%value%'
+import:
+  done: '<success>Imported <warn>%count%<success> LuckPerms groups.'
+  none: '<error>No LuckPerms group data was found to import.'

@@ -1,1 +1,6 @@
 jailed: '<error>You are currently jailed.'
+text:
+  unknown-help: '<error>Unknown help page <warn>%page%<error>.'
+  unknown-info: '<error>Unknown info page <warn>%page%<error>.'
+  available-pages: '<subtle>Available pages: <text>%pages%'
+  empty: '<subtle>No text has been configured yet.'

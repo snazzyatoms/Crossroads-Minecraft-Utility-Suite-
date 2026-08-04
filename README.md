@@ -4,15 +4,15 @@
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-Utility%20Suite-00C853?style=for-the-badge&logo=minecraft&logoColor=white)](https://minecraft.net)
 [![Paper / Spigot](https://img.shields.io/badge/Paper%20%2F%20Spigot-1.16.5%2B-2196F3?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io)
-[![Version](https://img.shields.io/badge/Version-0.2.0-F57C00?style=for-the-badge)](./pom.xml)
+[![Version](https://img.shields.io/badge/Version-1.0.0-F57C00?style=for-the-badge)](./pom.xml)
 [![Storage](https://img.shields.io/badge/Storage-YAML%20%7C%20SQLite%20%7C%20MySQL-4CAF50?style=for-the-badge)](#storage)
 [![License](https://img.shields.io/badge/License-MIT-263238?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](./LICENSE)
 
 # Crossroads Minecraft Utility Suite
 
-Crossroads is a server-core utility suite for Paper and Spigot servers. It is designed to cover the daily server layer that most communities end up piecing together from multiple plugins: homes, warps, spawn, kits, staff tooling, moderation, messaging, text pages, storage, integrations, and extension hooks.
+Crossroads is a self-reliant server-core suite for Paper and Spigot. It covers daily utilities, native permissions, native economy, multi-language packs, staff tooling, moderation, storage, and soft integrations — so servers do not need LuckPerms, Essentials, or Vault to run a complete core stack.
 
-The goal is not to clone Essentials. The goal is to be cleaner to operate, easier to extend, safer to integrate, and more opinionated about modern server workflows.
+Crossroads keeps its own identity. Soft partners (AegisGuard, Coffers, Vault, Essentials import, PlaceholderAPI) are optional compatibility layers, never hard requirements.
 
 </div>
 
@@ -20,22 +20,36 @@ The goal is not to clone Essentials. The goal is to be cleaner to operate, easie
 
 ## What Crossroads is aiming to be
 
-Crossroads is built around four design goals:
-
 - one suite instead of a stack of loosely connected utility plugins
+- self-reliant permissions and economy with optional bridges
+- multi-language replies that can sync with AegisGuard language packs
 - operationally clean startup, reload, storage, and backup behavior
 - extension-first architecture through API and SPI artifacts
-- practical integration with economy, protection, placeholder, and migration ecosystems
-
-That means the project should feel strong in three places at the same time:
-
-- player quality-of-life features
-- staff and moderation workflows
-- server-owner configuration and extensibility
 
 ---
 
-## What ships in this repository today
+## What ships in 1.0.0
+
+### Localization
+
+- YAML language packs under `plugins/Crossroads/lang/<style>/`
+- Bundled styles: `modern_english`, `french_fr`, `spanish_mx`, `spanish_ar`, `portuguese_br`, `italian_it`, `german_de`, `polish_pl`
+- Per-player `/language`, server default, and AegisGuard sync (`localization.sync_aegisguard`)
+- Command, staff, moderation, menu, economy, and permission replies are keyed translations
+
+### Native permissions
+
+- Players + groups, inheritance, prefixes/suffixes, temporary nodes, world/server contexts
+- Bukkit `PermissionAttachment` injection so `hasPermission` works without LuckPerms
+- `/crperms` (`/cperm`) for user/group management, checks, and LuckPerms group import
+- Optional Vault Permissions bridge (`permissions.vault-bridge`, default off)
+
+### Native economy
+
+- Built-in balances with `/balance`, `/pay`, `/baltop`, and `/eco`
+- Prefers Coffers when present; native Crossroads balances otherwise
+- Vault economy bridge only when `economy.vault-bridge` is enabled
+- Existing AegisGuard ClaimBlocks economy mode still supported
 
 ### Core player utility
 
@@ -53,44 +67,98 @@ That means the project should feel strong in three places at the same time:
 - `/freeze`, `/mute`, `/warn`, `/kick`, `/tempban`, `/unban`
 - jail tools, shadow mute, staff notes, and moderation history
 
-### Integration surface
+### Soft compatibility
 
-- PlaceholderAPI support
-- Coffers-first economy resolution with Vault fallback
-- AegisGuard-aware extras
+- PlaceholderAPI
+- AegisGuard language sync, plots, and ClaimBlocks
+- Coffers-preferred economy
+- optional Vault bridges for foreign plugins
 - protection compatibility for WorldGuard, GriefPrevention, Lands, Residence, Towny, and PlotSquared
 - Essentials migration entry point
 
 ---
 
-## Why this is distinct from Essentials-style suites
+## Localization
 
-Crossroads is intended to differentiate on architecture and operability, not just command count.
+Configure in `config.yml`:
 
-- profile-aware data instead of purely flat global behavior
-- modular extension points instead of keeping everything closed in one monolith
-- better startup diagnostics and less noisy default behavior
-- cleaner persistence choices for small servers and networked deployments
-- stronger integration posture for modern protection and placeholder stacks
+```yaml
+localization:
+  folder: lang
+  default_language: modern_english
+  fallback_language: modern_english
+  extract_defaults: true
+  sync_aegisguard: true
+  allow_player_language: true
+```
+
+Resolution order per player:
+
+1. Crossroads personal language (`/language <style>`)
+2. AegisGuard player/server style when sync is enabled
+3. Crossroads default language
+4. Fallback language
+
+Add custom packs by copying `lang/modern_english/` to a new folder id and listing it under `localization.available_languages`.
+
+---
+
+## Permissions
+
+```yaml
+permissions:
+  enabled: true
+  default-group: default
+  vault-bridge: false
+  contexts:
+    world: true
+    server-name: global
+```
+
+Useful commands:
+
+- `/crperms user <player> info|permission|parent|group ...`
+- `/crperms group <name> create|delete|info|permission|parent|meta ...`
+- `/crperms list`
+- `/crperms check <player> <node>`
+- `/crperms import luckperms`
+
+---
+
+## Economy
+
+```yaml
+economy:
+  mode: money
+  prefer-coffers: true
+  vault-bridge: false
+  native:
+    enabled: true
+    currency-name-singular: coin
+    currency-name-plural: coins
+    starting-balance: 0
+    decimals: 2
+```
+
+Resolution order for `mode: money`:
+
+1. Coffers (when present and preferred)
+2. Native Crossroads balances
+3. Vault only if `vault-bridge: true`
 
 ---
 
 ## Architecture
 
-This repository currently produces three artifact types from one codebase:
+This repository produces three artifact types:
 
-- main plugin jar: the runnable Crossroads plugin
-- API jar: public-facing integration classes under [`src/main/java/dev/crossroadsmc/crossroads/api`](./src/main/java/dev/crossroadsmc/crossroads/api)
-- SPI jar: module-facing contracts under [`src/main/java/dev/crossroadsmc/crossroads/api/module`](./src/main/java/dev/crossroadsmc/crossroads/api/module)
+- main plugin jar
+- API jar under [`src/main/java/dev/crossroadsmc/crossroads/api`](./src/main/java/dev/crossroadsmc/crossroads/api)
+- SPI jar under [`src/main/java/dev/crossroadsmc/crossroads/api/module`](./src/main/java/dev/crossroadsmc/crossroads/api/module)
 
-Important entry points:
+`CrossroadsAPI` exposes language, permission, and economy services for modules.
 
-- [`CrossroadsPlugin.java`](./src/main/java/dev/crossroadsmc/crossroads/CrossroadsPlugin.java)
-- [`CrossroadsAPI.java`](./src/main/java/dev/crossroadsmc/crossroads/api/CrossroadsAPI.java)
-- [`CrossroadsModule.java`](./src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModule.java)
-- [`CrossroadsModuleContext.java`](./src/main/java/dev/crossroadsmc/crossroads/api/module/CrossroadsModuleContext.java)
-
-External module jars are loaded from:
+External module jars load from:
 
 ```text
 plugins/Crossroads/modules
@@ -100,31 +168,26 @@ plugins/Crossroads/modules
 
 ## Storage
 
-Crossroads supports three persistence modes:
-
 | Backend | Best fit |
 | --- | --- |
 | YAML | lightweight servers and quick installs |
 | SQLite | single-node production servers |
 | MySQL | shared infrastructure and larger networks |
 
-Stored state includes player data, homes, warps, spawn profiles, mail, kit cooldowns, moderation history, jails, and back locations.
-
-Primary persistence implementations live under [`src/main/java/dev/crossroadsmc/crossroads/storage`](./src/main/java/dev/crossroadsmc/crossroads/storage).
+Stored state includes player data, homes, warps, spawn profiles, mail, kit cooldowns, moderation history, jails, back locations, balances, language prefs, and permission memberships. Group definitions persist through the storage document API.
 
 ---
 
 ## Configuration files
 
-Bundled defaults live in [`src/main/resources`](./src/main/resources) and are provisioned into `plugins/Crossroads/` on first startup.
+Bundled defaults live in [`src/main/resources`](./src/main/resources):
 
 - [`config.yml`](./src/main/resources/config.yml)
 - [`kits.yml`](./src/main/resources/kits.yml)
 - [`motd.yml`](./src/main/resources/motd.yml)
 - [`help.yml`](./src/main/resources/help.yml)
 - [`info.yml`](./src/main/resources/info.yml)
-
-Crossroads now treats existing bundled YAML files as normal server state. If `kits.yml` already exists, startup leaves it alone silently instead of logging repeated warnings.
+- [`lang/<style>/*.yml`](./src/main/resources/lang)
 
 ---
 
@@ -138,32 +201,23 @@ Crossroads now treats existing bundled YAML files as normal server state. If `ki
 - `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny`, `/tpacancel`
 - `/rtp`
 
-### Social and utility
+### Social, language, and economy
 
-- `/msg`, `/reply`, `/ignore`, `/mail`
-- `/nick`
-- `/kit`
-- `/motd`, `/help`, `/info`, `/rules`
+- `/msg`, `/reply`, `/ignore`, `/mail`, `/nick`
+- `/language`
+- `/balance`, `/pay`, `/baltop`, `/eco`
+- `/kit`, `/motd`, `/help`, `/info`, `/rules`
 
-### Staff and moderation
+### Staff, moderation, and permissions
 
 - `/fly`, `/vanish`, `/staffmode`, `/socialspy`
 - `/invsee`, `/endersee`, `/seen`
-- `/freeze`, `/unfreeze`, `/mute`, `/unmute`
-- `/kick`, `/tempban`, `/unban`
-- `/setjail`, `/jail`, `/unjail`
-- `/warn`, `/shadowmute`, `/staffnote`
-- `/stafflog`, `/history`
+- moderation suite (`/freeze`, `/mute`, `/kick`, `/tempban`, jails, notes, history)
+- `/crperms` (`/cperm`)
 
 ### Administration
 
-- `/crossroads about`
-- `/crossroads reload`
-- `/crossroads modules`
-- `/crossroads backup create`
-- `/crossroads import essentials`
-
-Command registration is defined in [`plugin.yml`](./src/main/resources/plugin.yml) and routed through [`CrossroadsCommandRouter.java`](./src/main/java/dev/crossroadsmc/crossroads/command/CrossroadsCommandRouter.java).
+- `/crossroads about|reload|modules|backup create|import essentials|language|perms`
 
 ---
 
@@ -171,33 +225,24 @@ Command registration is defined in [`plugin.yml`](./src/main/resources/plugin.ym
 
 Crossroads targets Java 17 and Spigot/Paper `1.16.5+`.
 
-Typical package flow:
-
 ```text
 mvn clean package
 ```
 
-The Maven build is configured in [`pom.xml`](./pom.xml).
+Build output is kept outside the repository:
 
-Build output is intentionally kept outside the repository so the project root stays clean for GitHub:
-
-- intermediate Maven build files: `D:\Crossroads Build\crossroads`
-- release jars and checksums: `D:\Crossroads Release Jars\crossroads-0.2.0`
+- intermediate Maven build files: `../Crossroads Build/crossroads`
+- release jars and checksums: `../Crossroads Release Jars/crossroads-1.0.0`
 
 ---
 
-## Roadmap to rival the bigger suites
+## Roadmap
 
-The current codebase already covers a meaningful utility surface, but the next quality jump should come from depth, not feature spam.
-
-Recommended priorities:
-
-- complete command parity for the features already present in storage and service layers
-- add stronger permission granularity and audit visibility for staff actions
-- formalize import and migration tooling beyond Essentials basics
-- split compatibility concerns cleanly if modern and legacy server lines need separate build targets
-- expand the module ecosystem so server owners can extend Crossroads without forking core
-- harden startup, reload, and config migration paths so production servers stay quiet and predictable
+- permission tracks / richer meta GUI
+- deeper LuckPerms import (users + track maps)
+- tighter Coffers dual-currency alignment
+- more complete non-English pack polish beyond core strings
+- expand the module ecosystem
 
 ---
 

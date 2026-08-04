@@ -1,0 +1,5 @@
+title: "<warn>Message of the Day"
+lines:
+  - "<accent>Welcome to Crossroads, <warn>%player%<accent>."
+  - "<subtle>You are currently in <text>%world% <subtle>(profile: <text>%profile%<subtle>)."
+  - "<subtle>Use <warn>/help <subtle>to browse server commands and <warn>/info <subtle>for server details."

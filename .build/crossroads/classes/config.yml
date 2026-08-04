@@ -1,0 +1,188 @@
+messages:
+  prefix: "<accent>Crossroads <muted>» <text>"
+  palette:
+    error: "&c"
+    success: "&a"
+    warn: "&e"
+    info: "&b"
+    accent: "&6"
+    text: "&f"
+    subtle: "&7"
+    muted: "&8"
+    highlight: "&d"
+  direct:
+    incoming: "<highlight>[from %player%] <text>%message%"
+    outgoing: "<highlight>[to %player%] <text>%message%"
+    spy: "<muted>[Spy] <highlight>%from% <subtle>-> <highlight>%to%<subtle>: <text>%message%"
+    play-sound: true
+
+players:
+  homes:
+    default-name: home
+    default-limit: 5
+
+features:
+  homes: true
+  warps: true
+  spawn: true
+  teleports: true
+  back: true
+  messaging: true
+  kits: true
+  rules: true
+  welcome: true
+  staff-tools: true
+  inspection: true
+  moderation: true
+  text-pages: true
+  economy: true
+  permissions: true
+  placeholders: true
+  signs: true
+  gui: true
+  backups: true
+  modules: true
+
+localization:
+  folder: lang
+  default_language: modern_english
+  fallback_language: modern_english
+  extract_defaults: true
+  sync_aegisguard: true
+  allow_player_language: true
+  available_languages:
+    - modern_english
+    - french_fr
+    - spanish_mx
+    - spanish_ar
+    - portuguese_br
+    - italian_it
+    - german_de
+    - polish_pl
+
+permissions:
+  enabled: true
+  default-group: default
+  vault-bridge: false
+  contexts:
+    world: true
+    server-name: global
+
+world-profiles:
+  aliases:
+    survival:
+      - world
+
+spawn:
+  teleport-on-first-join: true
+
+storage:
+  type: YAML
+  sqlite:
+    file: storage/crossroads.db
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    database: crossroads
+    username: root
+    password: change-me
+    use-ssl: false
+  pool:
+    minimum-idle: 1
+    maximum-size: 6
+    connection-timeout-ms: 10000
+
+persistence:
+  autosave:
+    enabled: true
+    interval-seconds: 120
+
+cooldowns:
+  commands:
+    home: 5
+    warp: 5
+    spawn: 10
+    back: 15
+    tpa: 20
+    tpahere: 20
+    rtp: 120
+
+teleport-requests:
+  timeout-seconds: 60
+
+economy:
+  mode: money
+  prefer-coffers: true
+  vault-bridge: false
+  native:
+    enabled: true
+    currency-name-singular: coin
+    currency-name-plural: coins
+    starting-balance: 0
+    decimals: 2
+  costs:
+    home: 0.0
+    warp: 0.0
+    spawn: 0.0
+    back: 0.0
+    tpa: 0.0
+    tpahere: 0.0
+    rtp: 0.0
+
+rtp:
+  min-radius: 64
+  max-radius: 1500
+  max-attempts: 12
+  disabled-worlds: []
+
+protection:
+  enabled: true
+  teleport-respect-entry: true
+  rtp-avoid-protected-areas: true
+  providers:
+    aegisguard: true
+    worldguard: true
+    griefprevention: true
+    lands: true
+    residence: true
+    towny: true
+    plotsquared: true
+
+aegisguard:
+  teleport-respect-entry: true
+  rtp-avoid-protected-plots: true
+
+gui:
+  warps:
+    enabled: true
+  kits:
+    enabled: true
+
+moderation:
+  jails:
+    radius: 6.0
+
+backups:
+  auto-on-startup: true
+  auto-on-shutdown: true
+  max-files: 10
+
+welcome:
+  enabled: true
+  first-join:
+    - "<accent>Welcome to Crossroads, <warn>%player%<accent>!"
+    - "<subtle>Your journey starts in <text>%world%<subtle>. Use <warn>/rules <subtle>and <warn>/spawn <subtle>to get settled."
+  returning:
+    - "<accent>Welcome back, <warn>%player%<accent>."
+    - "<subtle>Everything is ready for you in <text>%world%<subtle>."
+  per-world:
+    world_nether:
+      returning:
+        - "<error>Watch your footing, <warn>%player%<error>."
+        - "<subtle>Crossroads detected a return to the Nether."
+
+rules:
+  - "<text>Respect other players and staff."
+  - "<text>No cheating, griefing, or exploiting bugs."
+  - "<text>Keep chat welcoming and server-friendly."
+  - "<text>Listen to staff during moderation reviews."

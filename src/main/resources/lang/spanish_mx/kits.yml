@@ -6,3 +6,5 @@ cooldown: '<error>Kit <warn>%kit%<error> is on cooldown for <warn>%duration%<err
 claimed: '<success>Claimed kit <warn>%kit%<success>.'
 unavailable-profile: '<error>That kit is not available in this world profile.'
 cannot-afford: '<error>%reason%'
+unavailable: '<error>Ese kit ya no está disponible.'
+cooldown-generic: '<error>That kit is on cooldown for another <warn>%duration%<error>.'

@@ -2210,6 +2210,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             msg(sender, failure);
             return;
         }
+        if (failure.contains("<") || failure.contains("&")) {
+            Chat.send(plugin, sender, failure);
+            return;
+        }
         Chat.send(plugin, sender, "<error>" + failure);
     }
 

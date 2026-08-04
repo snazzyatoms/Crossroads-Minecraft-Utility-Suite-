@@ -51,13 +51,13 @@ public final class InteractionListener implements Listener {
             String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
             SavedLocation warp = plugin.getWarpService().getWarp(profile, entry);
             if (warp == null || warp.toLocation() == null) {
-                Chat.send(plugin, player, "<error>That warp is no longer available.");
+                plugin.getLanguageService().send(player, "travel.warp.unavailable");
                 player.closeInventory();
                 return;
             }
             plugin.getBackService().record(player, player.getLocation());
             player.teleport(warp.toLocation());
-            Chat.send(plugin, player, "<success>Warped to <warn>" + entry + "<success>.");
+            plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", entry);
             player.closeInventory();
             return;
         }
@@ -66,7 +66,7 @@ public final class InteractionListener implements Listener {
             String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
             KitDefinition kit = plugin.getKitService().getKit(entry);
             if (kit == null || !kit.isAvailableIn(profile)) {
-                Chat.send(plugin, player, "<error>That kit is no longer available.");
+                plugin.getLanguageService().send(player, "kits.unavailable");
                 player.closeInventory();
                 return;
             }
@@ -76,13 +76,17 @@ public final class InteractionListener implements Listener {
             long nextUse = data.getKitCooldown(profile + ":" + kit.getKey());
             if (nextUse > now) {
                 long remaining = Math.max(1L, (nextUse - now) / 1000L);
-                Chat.send(plugin, player, "<error>That kit is on cooldown for another <warn>" + TimeFormatter.duration(remaining) + "<error>.");
+                plugin.getLanguageService().send(player, "kits.cooldown-generic",
+                    "%duration%", TimeFormatter.duration(remaining));
                 return;
             }
             if (kit.getCost() > 0.0D) {
                 String failure = plugin.getEconomyService().charge(player, kit.getCost(), "Crossroads kit " + kit.getKey());
                 if (failure != null) {
-                    Chat.send(plugin, player, "<error>" + failure);
+                    String reason = failure.indexOf(' ') < 0
+                        ? plugin.getLanguageService().get(player, failure)
+                        : failure;
+                    plugin.getLanguageService().send(player, "kits.cannot-afford", "%reason%", reason);
                     return;
                 }
             }
@@ -98,7 +102,7 @@ public final class InteractionListener implements Listener {
                 data.setKitCooldown(profile + ":" + kit.getKey(), now + (kit.getCooldownSeconds() * 1000L));
                 plugin.getPlayerDataService().save(player);
             }
-            Chat.send(plugin, player, "<success>Claimed kit <warn>" + kit.getDisplayName() + "<success>.");
+            plugin.getLanguageService().send(player, "kits.claimed", "%kit%", kit.getDisplayName());
             player.closeInventory();
         }
     }
@@ -116,8 +120,8 @@ public final class InteractionListener implements Listener {
             return;
         }
 
-        event.setLine(0, Chat.color(plugin, "<accent>[Crossroads]"));
-        event.getPlayer().sendMessage(Chat.color(plugin, "<success>Crossroads sign created."));
+        event.setLine(0, plugin.getLanguageService().colorize(event.getPlayer(), "admin.sign-header"));
+        plugin.getLanguageService().send(event.getPlayer(), "admin.sign-created");
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -146,30 +150,30 @@ public final class InteractionListener implements Listener {
                 String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
                 SavedLocation warp = plugin.getWarpService().getWarp(profile, value);
                 if (warp == null || warp.toLocation() == null) {
-                    Chat.send(plugin, player, "<error>That warp sign points nowhere.");
+                    plugin.getLanguageService().send(player, "travel.warp.sign-missing");
                     return;
                 }
                 plugin.getBackService().record(player, player.getLocation());
                 player.teleport(warp.toLocation());
-                Chat.send(plugin, player, "<success>Warped to <warn>" + value + "<success>.");
+                plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", value);
             }
             case "kit" -> plugin.getMenuService().openKitMenu(player);
             case "spawn" -> {
                 String profile = plugin.getWorldProfileService().resolveProfile(player.getWorld());
                 SavedLocation spawn = plugin.getSpawnService().getSpawn(profile);
                 if (spawn == null || spawn.toLocation() == null) {
-                    Chat.send(plugin, player, "<error>No spawn is available here.");
+                    plugin.getLanguageService().send(player, "travel.spawn.unavailable");
                     return;
                 }
                 plugin.getBackService().record(player, player.getLocation());
                 player.teleport(spawn.toLocation());
-                Chat.send(plugin, player, "<success>Teleported to spawn.");
+                plugin.getLanguageService().send(player, "travel.spawn.teleported");
             }
             case "rtp" -> player.performCommand("rtp");
             case "motd" -> player.performCommand("motd");
             case "help" -> player.performCommand("help");
             case "info" -> player.performCommand("info");
-            default -> Chat.send(plugin, player, "<error>That sign action is not supported.");
+            default -> plugin.getLanguageService().send(player, "travel.sign.unsupported");
         }
     }
 }

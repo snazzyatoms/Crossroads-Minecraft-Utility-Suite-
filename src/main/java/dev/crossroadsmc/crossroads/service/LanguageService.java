@@ -238,7 +238,8 @@ public final class LanguageService {
                 }
             }
             if (loaded) {
-                flatten("", yaml, messages);
+                String bundlePrefix = bundle.endsWith(".yml") ? bundle.substring(0, bundle.length() - 4) : bundle;
+                flatten(bundlePrefix, yaml, messages);
             }
         }
         return Collections.unmodifiableMap(messages);
