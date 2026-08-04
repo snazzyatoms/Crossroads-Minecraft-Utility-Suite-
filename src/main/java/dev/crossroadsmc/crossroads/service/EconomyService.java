@@ -1,13 +1,20 @@
 package dev.crossroadsmc.crossroads.service;
 
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
+import dev.crossroadsmc.crossroads.model.PlayerData;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -27,7 +34,25 @@ public final class EconomyService {
             this.adapter = detectAegisClaimBlocks().orElseGet(NoopEconomyAdapter::new);
             return;
         }
-        this.adapter = detectCoffers().or(this::detectVault).orElseGet(NoopEconomyAdapter::new);
+
+        boolean preferCoffers = plugin.getConfig().getBoolean("economy.prefer-coffers", true);
+        boolean vaultBridge = plugin.getConfig().getBoolean("economy.vault-bridge", false);
+        boolean nativeEnabled = plugin.getConfig().getBoolean("economy.native.enabled", true);
+
+        Optional<EconomyAdapter> coffers = preferCoffers ? detectCoffers() : Optional.empty();
+        if (coffers.isPresent()) {
+            this.adapter = coffers.get();
+            return;
+        }
+        if (nativeEnabled) {
+            this.adapter = new NativeEconomyAdapter(plugin);
+            return;
+        }
+        if (vaultBridge) {
+            this.adapter = detectVault().orElseGet(NoopEconomyAdapter::new);
+            return;
+        }
+        this.adapter = new NoopEconomyAdapter();
     }
 
     public boolean isAvailable() {
@@ -55,6 +80,37 @@ public final class EconomyService {
             return null;
         }
         return adapter.withdraw(player, amount, reason);
+    }
+
+    public String deposit(OfflinePlayer player, double amount, String reason) {
+        if (amount <= 0.0D) {
+            return null;
+        }
+        return adapter.deposit(player, amount, reason);
+    }
+
+    public String setBalance(OfflinePlayer player, double amount) {
+        return adapter.setBalance(player, amount);
+    }
+
+    public String transfer(Player from, OfflinePlayer to, double amount) {
+        if (amount <= 0.0D) {
+            return "economy.invalid-amount";
+        }
+        String withdrawFailure = adapter.withdraw(from, amount, "pay");
+        if (withdrawFailure != null) {
+            return withdrawFailure;
+        }
+        String depositFailure = adapter.deposit(to, amount, "pay");
+        if (depositFailure != null) {
+            adapter.deposit(from, amount, "pay-refund");
+            return depositFailure;
+        }
+        return null;
+    }
+
+    public List<BalanceEntry> topBalances(int limit) {
+        return adapter.topBalances(limit);
     }
 
     private Optional<EconomyAdapter> detectAegisClaimBlocks() {
@@ -85,6 +141,9 @@ public final class EconomyService {
         return Optional.of(new VaultEconomyAdapter(registration.getProvider()));
     }
 
+    public record BalanceEntry(UUID uuid, String name, double balance) {
+    }
+
     private interface EconomyAdapter {
         boolean isAvailable();
 
@@ -97,6 +156,12 @@ public final class EconomyService {
         boolean has(OfflinePlayer player, double amount);
 
         String withdraw(OfflinePlayer player, double amount, String reason);
+
+        String deposit(OfflinePlayer player, double amount, String reason);
+
+        String setBalance(OfflinePlayer player, double amount);
+
+        List<BalanceEntry> topBalances(int limit);
     }
 
     private static final class NoopEconomyAdapter implements EconomyAdapter {
@@ -127,7 +192,128 @@ public final class EconomyService {
 
         @Override
         public String withdraw(OfflinePlayer player, double amount, String reason) {
-            return "No compatible economy provider is active.";
+            return "economy.unavailable";
+        }
+
+        @Override
+        public String deposit(OfflinePlayer player, double amount, String reason) {
+            return "economy.unavailable";
+        }
+
+        @Override
+        public String setBalance(OfflinePlayer player, double amount) {
+            return "economy.unavailable";
+        }
+
+        @Override
+        public List<BalanceEntry> topBalances(int limit) {
+            return List.of();
+        }
+    }
+
+    private static final class NativeEconomyAdapter implements EconomyAdapter {
+        private final CrossroadsPlugin plugin;
+        private final DecimalFormat format;
+
+        private NativeEconomyAdapter(CrossroadsPlugin plugin) {
+            this.plugin = plugin;
+            int decimals = Math.max(0, plugin.getConfig().getInt("economy.native.decimals", 2));
+            StringBuilder pattern = new StringBuilder("0");
+            if (decimals > 0) {
+                pattern.append('.');
+                pattern.append("0".repeat(decimals));
+            }
+            this.format = new DecimalFormat(pattern.toString());
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return true;
+        }
+
+        @Override
+        public String getProviderName() {
+            return "Crossroads";
+        }
+
+        @Override
+        public double getBalance(OfflinePlayer player) {
+            PlayerData data = plugin.getPlayerDataService().get(player.getUniqueId());
+            if (!data.isBalanceInitialized()) {
+                double starting = plugin.getConfig().getDouble("economy.native.starting-balance", 0.0D);
+                data.setBalance(starting);
+                plugin.getPlayerDataService().save(player.getUniqueId());
+            }
+            return round(data.getBalance());
+        }
+
+        @Override
+        public String format(double amount) {
+            String singular = plugin.getConfig().getString("economy.native.currency-name-singular", "coin");
+            String plural = plugin.getConfig().getString("economy.native.currency-name-plural", "coins");
+            String rendered = format.format(round(amount));
+            return rendered + " " + (Math.abs(amount - 1.0D) < 0.0000001D ? singular : plural);
+        }
+
+        @Override
+        public boolean has(OfflinePlayer player, double amount) {
+            return getBalance(player) + 0.0000001D >= amount;
+        }
+
+        @Override
+        public String withdraw(OfflinePlayer player, double amount, String reason) {
+            if (!has(player, amount)) {
+                return "economy.insufficient-funds";
+            }
+            PlayerData data = plugin.getPlayerDataService().get(player.getUniqueId());
+            data.setBalance(round(getBalance(player) - amount));
+            plugin.getPlayerDataService().save(player.getUniqueId());
+            return null;
+        }
+
+        @Override
+        public String deposit(OfflinePlayer player, double amount, String reason) {
+            PlayerData data = plugin.getPlayerDataService().get(player.getUniqueId());
+            data.setBalance(round(getBalance(player) + amount));
+            plugin.getPlayerDataService().save(player.getUniqueId());
+            return null;
+        }
+
+        @Override
+        public String setBalance(OfflinePlayer player, double amount) {
+            PlayerData data = plugin.getPlayerDataService().get(player.getUniqueId());
+            data.setBalance(round(Math.max(0.0D, amount)));
+            plugin.getPlayerDataService().save(player.getUniqueId());
+            return null;
+        }
+
+        @Override
+        public List<BalanceEntry> topBalances(int limit) {
+            List<BalanceEntry> entries = new ArrayList<>();
+            for (OfflinePlayer offlinePlayer : Bukkit.getOfflinePlayers()) {
+                if (offlinePlayer.getUniqueId() == null) {
+                    continue;
+                }
+                PlayerData data = plugin.getPlayerDataService().get(offlinePlayer.getUniqueId());
+                if (!data.isBalanceInitialized() && data.getBalance() <= 0.0D) {
+                    continue;
+                }
+                entries.add(new BalanceEntry(
+                    offlinePlayer.getUniqueId(),
+                    offlinePlayer.getName() == null ? offlinePlayer.getUniqueId().toString() : offlinePlayer.getName(),
+                    getBalance(offlinePlayer)
+                ));
+            }
+            entries.sort(Comparator.comparingDouble(BalanceEntry::balance).reversed());
+            if (entries.size() > limit) {
+                return entries.subList(0, limit);
+            }
+            return entries;
+        }
+
+        private double round(double amount) {
+            int decimals = Math.max(0, plugin.getConfig().getInt("economy.native.decimals", 2));
+            return BigDecimal.valueOf(amount).setScale(decimals, RoundingMode.HALF_UP).doubleValue();
         }
     }
 
@@ -168,12 +354,27 @@ public final class EconomyService {
         public String withdraw(OfflinePlayer player, double amount, String reason) {
             long rounded = Math.max(1L, Math.round(amount));
             if (getBalance(player) < rounded) {
-                return "Insufficient AegisGuard ClaimBlocks.";
+                return "economy.insufficient-claimblocks";
             }
             if (!plugin.getAegisGuardHookService().spendClaimBlocks(player.getUniqueId(), rounded)) {
-                return "AegisGuard rejected the ClaimBlocks transaction.";
+                return "economy.claimblocks-rejected";
             }
             return null;
+        }
+
+        @Override
+        public String deposit(OfflinePlayer player, double amount, String reason) {
+            return "economy.claimblocks-deposit-unsupported";
+        }
+
+        @Override
+        public String setBalance(OfflinePlayer player, double amount) {
+            return "economy.claimblocks-set-unsupported";
+        }
+
+        @Override
+        public List<BalanceEntry> topBalances(int limit) {
+            return List.of();
         }
     }
 
@@ -212,12 +413,37 @@ public final class EconomyService {
         @Override
         public String withdraw(OfflinePlayer player, double amount, String reason) {
             if (!economy.has(player, amount)) {
-                return "Insufficient funds.";
+                return "economy.insufficient-funds";
             }
             if (!economy.withdrawPlayer(player, amount).transactionSuccess()) {
-                return "The economy provider rejected the transaction.";
+                return "economy.transaction-rejected";
             }
             return null;
+        }
+
+        @Override
+        public String deposit(OfflinePlayer player, double amount, String reason) {
+            if (!economy.depositPlayer(player, amount).transactionSuccess()) {
+                return "economy.transaction-rejected";
+            }
+            return null;
+        }
+
+        @Override
+        public String setBalance(OfflinePlayer player, double amount) {
+            double current = economy.getBalance(player);
+            if (amount > current) {
+                return deposit(player, amount - current, "set");
+            }
+            if (amount < current) {
+                return withdraw(player, current - amount, "set");
+            }
+            return null;
+        }
+
+        @Override
+        public List<BalanceEntry> topBalances(int limit) {
+            return List.of();
         }
     }
 
@@ -228,6 +454,7 @@ public final class EconomyService {
         private final Method getBalance;
         private final Method format;
         private final Method withdraw;
+        private final Method deposit;
 
         private CoffersEconomyAdapter(Object provider, Class<?> apiClass) {
             this.provider = provider;
@@ -237,6 +464,13 @@ public final class EconomyService {
                 this.getBalance = apiClass.getMethod("getBalance", java.util.UUID.class);
                 this.format = apiClass.getMethod("format", BigDecimal.class);
                 this.withdraw = apiClass.getMethod("withdraw", java.util.UUID.class, BigDecimal.class, String.class);
+                Method depositMethod;
+                try {
+                    depositMethod = apiClass.getMethod("deposit", java.util.UUID.class, BigDecimal.class, String.class);
+                } catch (NoSuchMethodException exception) {
+                    depositMethod = null;
+                }
+                this.deposit = depositMethod;
             } catch (NoSuchMethodException exception) {
                 throw new IllegalStateException("Coffers API surface changed unexpectedly.", exception);
             }
@@ -283,6 +517,45 @@ public final class EconomyService {
             ensureAccount(player);
             try {
                 Object result = withdraw.invoke(provider, player.getUniqueId(), BigDecimal.valueOf(amount), reason);
+                return interpretResult(result);
+            } catch (IllegalAccessException | InvocationTargetException exception) {
+                return "economy.coffers-failed";
+            }
+        }
+
+        @Override
+        public String deposit(OfflinePlayer player, double amount, String reason) {
+            ensureAccount(player);
+            if (deposit == null) {
+                return "economy.coffers-deposit-unsupported";
+            }
+            try {
+                Object result = deposit.invoke(provider, player.getUniqueId(), BigDecimal.valueOf(amount), reason);
+                return interpretResult(result);
+            } catch (IllegalAccessException | InvocationTargetException exception) {
+                return "economy.coffers-failed";
+            }
+        }
+
+        @Override
+        public String setBalance(OfflinePlayer player, double amount) {
+            double current = getBalance(player);
+            if (amount > current) {
+                return deposit(player, amount - current, "set");
+            }
+            if (amount < current) {
+                return withdraw(player, current - amount, "set");
+            }
+            return null;
+        }
+
+        @Override
+        public List<BalanceEntry> topBalances(int limit) {
+            return List.of();
+        }
+
+        private String interpretResult(Object result) throws IllegalAccessException, InvocationTargetException {
+            try {
                 Method successful = result.getClass().getMethod("successful");
                 boolean ok = Boolean.TRUE.equals(successful.invoke(result));
                 if (ok) {
@@ -290,8 +563,8 @@ public final class EconomyService {
                 }
                 Method message = result.getClass().getMethod("message");
                 return String.valueOf(message.invoke(result));
-            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException exception) {
-                return "The Coffers transaction failed.";
+            } catch (NoSuchMethodException exception) {
+                return "economy.coffers-failed";
             }
         }
 

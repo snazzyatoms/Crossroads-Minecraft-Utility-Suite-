@@ -1,0 +1,2 @@
+blocked: '<error>%provider% blocked that teleport. Area: <warn>%area% <error>| Owner: <warn>%owner%'
+aegisguard-blocked: '<error>AegisGuard blocked that teleport. Plot: <warn>%plot% <error>| Owner: <warn>%owner%'

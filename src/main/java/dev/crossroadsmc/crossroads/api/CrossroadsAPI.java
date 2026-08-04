@@ -3,7 +3,10 @@ package dev.crossroadsmc.crossroads.api;
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
+import dev.crossroadsmc.crossroads.service.EconomyService;
+import dev.crossroadsmc.crossroads.service.LanguageService;
 import dev.crossroadsmc.crossroads.service.ModuleManager;
+import dev.crossroadsmc.crossroads.service.PermissionService;
 import org.bukkit.entity.Player;
 
 public final class CrossroadsAPI {
@@ -37,5 +40,17 @@ public final class CrossroadsAPI {
 
     public static ModuleManager getModuleManager() {
         return getPlugin().getModuleManager();
+    }
+
+    public static LanguageService getLanguageService() {
+        return getPlugin().getLanguageService();
+    }
+
+    public static PermissionService getPermissionService() {
+        return getPlugin().getPermissionService();
+    }
+
+    public static EconomyService getEconomyService() {
+        return getPlugin().getEconomyService();
     }
 }

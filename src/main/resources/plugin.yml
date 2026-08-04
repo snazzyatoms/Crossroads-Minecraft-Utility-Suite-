@@ -156,9 +156,29 @@ commands:
   info:
     description: View Crossroads info pages.
     usage: /info [page]
+  language:
+    description: View or set your Crossroads language pack.
+    usage: /language [style|list|sync]
+  balance:
+    description: View your balance or another player's balance.
+    usage: /balance [player]
+    aliases: [bal, money]
+  pay:
+    description: Pay another player.
+    usage: /pay <player> <amount>
+  baltop:
+    description: View the richest players.
+    usage: /baltop [limit]
+  eco:
+    description: Manage player balances.
+    usage: /eco <give|take|set> <player> <amount>
+  crperms:
+    description: Manage Crossroads permissions.
+    usage: /crperms <user|group|list|check|import>
+    aliases: [cperm]
   crossroads:
     description: Crossroads admin command.
-    usage: /crossroads [reload|backup create|about|modules|import essentials]
+    usage: /crossroads [reload|backup create|about|modules|import essentials|language|perms]
     aliases: [cr]
 
 permissions:
@@ -215,4 +235,22 @@ permissions:
     default: op
   crossroads.admin:
     description: Use administrative Crossroads commands.
+    default: op
+  crossroads.language:
+    description: Use /language to view or set a language pack.
+    default: true
+  crossroads.economy.balance:
+    description: View economy balances.
+    default: true
+  crossroads.economy.pay:
+    description: Pay other players.
+    default: true
+  crossroads.economy.baltop:
+    description: View the balance leaderboard.
+    default: true
+  crossroads.economy.admin:
+    description: Use /eco to manage balances.
+    default: op
+  crossroads.perms.admin:
+    description: Manage Crossroads permissions.
     default: op

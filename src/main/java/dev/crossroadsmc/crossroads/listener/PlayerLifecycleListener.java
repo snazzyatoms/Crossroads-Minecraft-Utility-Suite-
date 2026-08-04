@@ -38,6 +38,10 @@ public final class PlayerLifecycleListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerData data = plugin.getPlayerDataService().get(player);
+        if (plugin.getPermissionService() != null) {
+            plugin.getPermissionService().ensurePlayerDefaults(data);
+            plugin.getPermissionService().applyAttachments(player);
+        }
         if (plugin.isFeatureEnabled("moderation")) {
             plugin.getModerationService().updateJoinState(player);
         }
@@ -85,6 +89,9 @@ public final class PlayerLifecycleListener implements Listener {
         }
         plugin.getTeleportRequestService().clear(player);
         plugin.getStaffService().removePlayerState(player);
+        if (plugin.getPermissionService() != null) {
+            plugin.getPermissionService().removeAttachments(player);
+        }
         plugin.getPlayerDataService().save(player);
     }
 }

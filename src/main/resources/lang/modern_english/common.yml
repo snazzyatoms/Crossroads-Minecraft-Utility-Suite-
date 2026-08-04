@@ -1,0 +1,8 @@
+no-permission: '<error>You do not have permission for that.'
+players-only: '<error>This command can only be used in-game.'
+feature-disabled: '<error>That feature is disabled in the Crossroads config.'
+cooldown: '<error>That command is on cooldown for another <warn>%duration%<error>.'
+player-not-online: '<error>That player is not online.'
+player-not-found: '<error>No known player named <warn>%player%<error> was found.'
+world-not-loaded: '<error>That location points to a world that is not loaded.'
+unknown-command: '<error>Unknown Crossroads subcommand.'

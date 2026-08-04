@@ -1,0 +1,8 @@
+usage: '<error>Usage: <warn>/kit [name]'
+list-header: '<warn>Available kits<subtle>: <text>%kits%'
+unknown: '<error>Unknown kit <warn>%kit%<error>.'
+no-permission: '<error>You do not have permission for kit <warn>%kit%<error>.'
+cooldown: '<error>Kit <warn>%kit%<error> is on cooldown for <warn>%duration%<error>.'
+claimed: '<success>Claimed kit <warn>%kit%<success>.'
+unavailable-profile: '<error>That kit is not available in this world profile.'
+cannot-afford: '<error>%reason%'

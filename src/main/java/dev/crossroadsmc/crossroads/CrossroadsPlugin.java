@@ -13,10 +13,12 @@ import dev.crossroadsmc.crossroads.service.EconomyService;
 import dev.crossroadsmc.crossroads.service.ImportService;
 import dev.crossroadsmc.crossroads.service.JailService;
 import dev.crossroadsmc.crossroads.service.KitService;
+import dev.crossroadsmc.crossroads.service.LanguageService;
 import dev.crossroadsmc.crossroads.service.MenuService;
 import dev.crossroadsmc.crossroads.service.MessagingService;
 import dev.crossroadsmc.crossroads.service.ModerationService;
 import dev.crossroadsmc.crossroads.service.ModuleManager;
+import dev.crossroadsmc.crossroads.service.PermissionService;
 import dev.crossroadsmc.crossroads.service.PlayerDataService;
 import dev.crossroadsmc.crossroads.service.ProtectionCompatibilityService;
 import dev.crossroadsmc.crossroads.service.SpawnService;
@@ -59,6 +61,8 @@ public final class CrossroadsPlugin extends JavaPlugin {
     private AegisGuardHookService aegisGuardHookService;
     private ProtectionCompatibilityService protectionCompatibilityService;
     private EconomyService economyService;
+    private LanguageService languageService;
+    private PermissionService permissionService;
     private MenuService menuService;
     private ImportService importService;
     private BukkitTask autosaveTask;
@@ -91,6 +95,8 @@ public final class CrossroadsPlugin extends JavaPlugin {
         this.aegisGuardHookService = new AegisGuardHookService(this);
         this.protectionCompatibilityService = new ProtectionCompatibilityService(this, aegisGuardHookService);
         this.economyService = new EconomyService(this);
+        this.languageService = new LanguageService(this);
+        this.permissionService = new PermissionService(this);
         this.menuService = new MenuService(this);
         this.importService = new ImportService(this);
         this.moduleManager = new ModuleManager(this);
@@ -133,6 +139,10 @@ public final class CrossroadsPlugin extends JavaPlugin {
                 staffService.shutdown();
             }
 
+            if (permissionService != null) {
+                permissionService.shutdown();
+            }
+
             flushPersistentState();
 
             if (isFeatureEnabled("backups") && backupService != null && getConfig().getBoolean("backups.auto-on-shutdown", true)) {
@@ -159,6 +169,8 @@ public final class CrossroadsPlugin extends JavaPlugin {
         aegisGuardHookService.reload();
         protectionCompatibilityService.reload();
         economyService.reload();
+        languageService.reload();
+        permissionService.reload();
         scheduleAutosave();
     }
 
@@ -230,6 +242,14 @@ public final class CrossroadsPlugin extends JavaPlugin {
         return economyService;
     }
 
+    public LanguageService getLanguageService() {
+        return languageService;
+    }
+
+    public PermissionService getPermissionService() {
+        return permissionService;
+    }
+
     public AegisGuardHookService getAegisGuardHookService() {
         return aegisGuardHookService;
     }
@@ -288,7 +308,9 @@ public final class CrossroadsPlugin extends JavaPlugin {
             "fly", "vanish", "staffmode", "socialspy",
             "invsee", "endersee", "freeze", "unfreeze", "mute", "unmute", "warn", "stafflog", "history", "seen",
             "kick", "tempban", "unban", "jail", "unjail", "setjail", "shadowmute", "staffnote",
-            "kit", "rules", "motd", "help", "info", "nick", "crossroads"
+            "kit", "rules", "motd", "help", "info", "nick",
+            "language", "balance", "pay", "baltop", "eco", "crperms",
+            "crossroads"
         );
 
         for (String name : commands) {

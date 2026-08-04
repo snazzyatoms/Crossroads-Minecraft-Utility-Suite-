@@ -18,8 +18,16 @@ public final class PlayerData {
     private final Map<String, Long> kitCooldowns = new ConcurrentHashMap<>();
     private final Map<String, Long> commandCooldowns = new ConcurrentHashMap<>();
     private final List<MailMessage> mailbox = Collections.synchronizedList(new ArrayList<>());
+    private final List<String> permissionGroups = Collections.synchronizedList(new ArrayList<>());
+    private final List<PermissionNode> permissionNodes = Collections.synchronizedList(new ArrayList<>());
     private volatile String lastKnownName = "";
     private volatile String nickname = "";
+    private volatile String language = "";
+    private volatile String primaryGroup = "";
+    private volatile String prefix = "";
+    private volatile String suffix = "";
+    private volatile double balance;
+    private volatile boolean balanceInitialized;
     private volatile long lastJoinAt;
     private volatile long lastQuitAt;
     private volatile long mutedUntil;
@@ -226,6 +234,129 @@ public final class PlayerData {
 
     public void setNickname(String nickname) {
         this.nickname = Objects.requireNonNullElse(nickname, "");
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = Objects.requireNonNullElse(language, "");
+    }
+
+    public String getPrimaryGroup() {
+        return primaryGroup;
+    }
+
+    public void setPrimaryGroup(String primaryGroup) {
+        this.primaryGroup = Objects.requireNonNullElse(primaryGroup, "").toLowerCase();
+    }
+
+    public String getPrefix() {
+        return prefix;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = Objects.requireNonNullElse(prefix, "");
+    }
+
+    public String getSuffix() {
+        return suffix;
+    }
+
+    public void setSuffix(String suffix) {
+        this.suffix = Objects.requireNonNullElse(suffix, "");
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    public void setBalance(double balance) {
+        this.balance = balance;
+        this.balanceInitialized = true;
+    }
+
+    public boolean isBalanceInitialized() {
+        return balanceInitialized;
+    }
+
+    public void setBalanceInitialized(boolean balanceInitialized) {
+        this.balanceInitialized = balanceInitialized;
+    }
+
+    public List<String> getPermissionGroups() {
+        synchronized (permissionGroups) {
+            return List.copyOf(permissionGroups);
+        }
+    }
+
+    public void setPermissionGroups(List<String> groups) {
+        synchronized (permissionGroups) {
+            permissionGroups.clear();
+            if (groups != null) {
+                for (String group : groups) {
+                    if (group != null && !group.isBlank()) {
+                        permissionGroups.add(group.toLowerCase());
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean addPermissionGroup(String group) {
+        String normalized = group == null ? "" : group.toLowerCase();
+        if (normalized.isBlank()) {
+            return false;
+        }
+        synchronized (permissionGroups) {
+            if (permissionGroups.contains(normalized)) {
+                return false;
+            }
+            permissionGroups.add(normalized);
+            return true;
+        }
+    }
+
+    public boolean removePermissionGroup(String group) {
+        synchronized (permissionGroups) {
+            return permissionGroups.remove(group == null ? "" : group.toLowerCase());
+        }
+    }
+
+    public List<PermissionNode> getPermissionNodes() {
+        synchronized (permissionNodes) {
+            return List.copyOf(permissionNodes);
+        }
+    }
+
+    public void setPermissionNodes(List<PermissionNode> nodes) {
+        synchronized (permissionNodes) {
+            permissionNodes.clear();
+            if (nodes != null) {
+                permissionNodes.addAll(nodes);
+            }
+        }
+    }
+
+    public void setPermissionNode(PermissionNode node) {
+        synchronized (permissionNodes) {
+            permissionNodes.removeIf(existing -> existing.getPermission().equals(node.getPermission())
+                && existing.getWorld().equals(node.getWorld())
+                && existing.getServer().equals(node.getServer()));
+            permissionNodes.add(node);
+        }
+    }
+
+    public boolean unsetPermissionNode(String permission, String world, String server) {
+        String normalized = permission == null ? "" : permission.toLowerCase();
+        String worldKey = world == null ? "" : world.toLowerCase();
+        String serverKey = server == null ? "" : server.toLowerCase();
+        synchronized (permissionNodes) {
+            return permissionNodes.removeIf(node -> node.getPermission().equals(normalized)
+                && node.getWorld().equals(worldKey)
+                && node.getServer().equals(serverKey));
+        }
     }
 
     public long getLastJoinAt() {

@@ -36,11 +36,37 @@ features:
   moderation: true
   text-pages: true
   economy: true
+  permissions: true
   placeholders: true
   signs: true
   gui: true
   backups: true
   modules: true
+
+localization:
+  folder: lang
+  default_language: modern_english
+  fallback_language: modern_english
+  extract_defaults: true
+  sync_aegisguard: true
+  allow_player_language: true
+  available_languages:
+    - modern_english
+    - french_fr
+    - spanish_mx
+    - spanish_ar
+    - portuguese_br
+    - italian_it
+    - german_de
+    - polish_pl
+
+permissions:
+  enabled: true
+  default-group: default
+  vault-bridge: false
+  contexts:
+    world: true
+    server-name: global
 
 world-profiles:
   aliases:
@@ -86,6 +112,14 @@ teleport-requests:
 
 economy:
   mode: money
+  prefer-coffers: true
+  vault-bridge: false
+  native:
+    enabled: true
+    currency-name-singular: coin
+    currency-name-plural: coins
+    starting-balance: 0
+    decimals: 2
   costs:
     home: 0.0
     warp: 0.0

@@ -2,6 +2,7 @@ package dev.crossroadsmc.crossroads.util;
 
 import dev.crossroadsmc.crossroads.model.MailMessage;
 import dev.crossroadsmc.crossroads.model.ModerationLogEntry;
+import dev.crossroadsmc.crossroads.model.PermissionNode;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
 import java.util.ArrayList;
@@ -23,6 +24,12 @@ public final class PlayerDataCodec {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("last-known-name", data.getLastKnownName());
         yaml.set("nickname", data.getNickname());
+        yaml.set("language", data.getLanguage());
+        yaml.set("primary-group", data.getPrimaryGroup());
+        yaml.set("prefix", data.getPrefix());
+        yaml.set("suffix", data.getSuffix());
+        yaml.set("balance", data.getBalance());
+        yaml.set("balance-initialized", data.isBalanceInitialized());
         yaml.set("last-join-at", data.getLastJoinAt());
         yaml.set("last-quit-at", data.getLastQuitAt());
         yaml.set("muted-until", data.getMutedUntil());
@@ -70,6 +77,19 @@ public final class PlayerDataCodec {
             section.set("read", message.isRead());
         }
 
+        yaml.set("permission-groups", data.getPermissionGroups());
+        ConfigurationSection permissionNodesSection = yaml.createSection("permission-nodes");
+        List<PermissionNode> permissionNodes = data.getPermissionNodes();
+        for (int index = 0; index < permissionNodes.size(); index++) {
+            PermissionNode node = permissionNodes.get(index);
+            ConfigurationSection section = permissionNodesSection.createSection(String.valueOf(index));
+            section.set("permission", node.getPermission());
+            section.set("value", node.getValue());
+            section.set("expires-at", node.getExpiresAt());
+            section.set("world", node.getWorld());
+            section.set("server", node.getServer());
+        }
+
         return yaml;
     }
 
@@ -77,6 +97,12 @@ public final class PlayerDataCodec {
         PlayerData data = new PlayerData(uuid);
         data.setLastKnownName(yaml.getString("last-known-name", ""));
         data.setNickname(yaml.getString("nickname", ""));
+        data.setLanguage(yaml.getString("language", ""));
+        data.setPrimaryGroup(yaml.getString("primary-group", ""));
+        data.setPrefix(yaml.getString("prefix", ""));
+        data.setSuffix(yaml.getString("suffix", ""));
+        data.setBalance(yaml.getDouble("balance", 0.0D));
+        data.setBalanceInitialized(yaml.getBoolean("balance-initialized", yaml.contains("balance")));
         data.setLastJoinAt(yaml.getLong("last-join-at", 0L));
         data.setLastQuitAt(yaml.getLong("last-quit-at", 0L));
         data.setMutedUntil(yaml.getLong("muted-until", 0L));
@@ -168,6 +194,26 @@ public final class PlayerDataCodec {
                 ));
             }
             data.importMailbox(mailbox);
+        }
+
+        data.setPermissionGroups(yaml.getStringList("permission-groups"));
+        ConfigurationSection permissionNodesSection = yaml.getConfigurationSection("permission-nodes");
+        if (permissionNodesSection != null) {
+            List<PermissionNode> nodes = new ArrayList<>();
+            for (String key : permissionNodesSection.getKeys(false)) {
+                ConfigurationSection section = permissionNodesSection.getConfigurationSection(key);
+                if (section == null) {
+                    continue;
+                }
+                nodes.add(new PermissionNode(
+                    section.getString("permission", ""),
+                    section.getBoolean("value", true),
+                    section.getLong("expires-at", 0L),
+                    section.getString("world", ""),
+                    section.getString("server", "")
+                ));
+            }
+            data.setPermissionNodes(nodes);
         }
 
         return data;

@@ -1,0 +1,23 @@
+reloaded: '<success>O Crossroads foi recarregado.'
+about: '<accent>Crossroads <text>v%version% <subtle>| storage <text>%storage% <subtle>| economy <text>%economy% <subtle>| language <text>%language%'
+modules:
+  none: '<subtle>No external modules are loaded.'
+  header: '<warn>Loaded modules'
+  line: '<text>- %name% <subtle>v%version%'
+backup:
+  usage: '<error>Usage: <warn>/crossroads backup create'
+  created: '<success>Backup created: <warn>%file%'
+  failed: '<error>Backup failed: <text>%reason%'
+import:
+  usage: '<error>Usage: <warn>/crossroads import essentials'
+  done: '<success>Imported Essentials data: <text>%summary%'
+  failed: '<error>Import failed: <text>%reason%'
+language:
+  usage: '<error>Usage: <warn>/language [style|list|sync]'
+  list-header: '<warn>Idiomas disponíveis<subtle>: <text>%languages%'
+  current: '<info>Your language is <warn>%language%<info>.'
+  set: '<success>Idioma definido para <warn>%language%<success>.'
+  synced: '<success>Preferência de idioma limpa. Sincronização AegisGuard / padrão do servidor será usada.'
+  unknown: '<error>Unknown language <warn>%language%<error>.'
+  disabled: '<error>Per-player languages are disabled.'
+usage: '<error>Usage: <warn>/crossroads <reload|about|modules|backup|import|language|perms>'

@@ -1,0 +1,63 @@
+freeze:
+  usage: '<error>Usage: <warn>/freeze <player> [reason]'
+  done: '<success>Froze <warn>%player%<success>.'
+  notify: '<error>You have been frozen. Reason: <text>%reason%'
+unfreeze:
+  usage: '<error>Usage: <warn>/unfreeze <player>'
+  done: '<success>Unfroze <warn>%player%<success>.'
+  notify: '<success>You have been unfrozen.'
+mute:
+  usage: '<error>Usage: <warn>/mute <player> <duration> [reason]'
+  done: '<success>Muted <warn>%player%<success> for <warn>%duration%<success>.'
+  notify: '<error>You are muted for <warn>%duration%<error>. Reason: <text>%reason%'
+unmute:
+  usage: '<error>Usage: <warn>/unmute <player>'
+  done: '<success>Unmuted <warn>%player%<success>.'
+  notify: '<success>You have been unmuted.'
+warn:
+  usage: '<error>Usage: <warn>/warn <player> [category] <reason>'
+  done: '<success>Warned <warn>%player%<success>.'
+  notify: '<error>You received a warning: <text>%reason%'
+kick:
+  usage: '<error>Usage: <warn>/kick <player> [reason]'
+  done: '<success>Kicked <warn>%player%<success>.'
+  message: '<error>Du wurdest gekickt. Grund: <text>%reason%'
+tempban:
+  usage: '<error>Usage: <warn>/tempban <player> <duration> [reason]'
+  done: '<success>Banned <warn>%player%<success> for <warn>%duration%<success>.'
+  message: '<error>Du bist gebannt <warn>%duration%<error>. Grund: <text>%reason%'
+unban:
+  usage: '<error>Usage: <warn>/unban <player>'
+  done: '<success>Unbanned <warn>%player%<success>.'
+jail:
+  usage: '<error>Usage: <warn>/jail <player> <jail> [duration] [reason]'
+  done: '<success>Jailed <warn>%player%<success> in <warn>%jail%<success>.'
+  notify: '<error>You have been jailed. Reason: <text>%reason%'
+  active: '<error>You are currently jailed.'
+unjail:
+  usage: '<error>Usage: <warn>/unjail <player>'
+  done: '<success>Released <warn>%player%<success> from jail.'
+  notify: '<success>You have been released from jail.'
+setjail:
+  usage: '<error>Usage: <warn>/setjail <name>'
+  done: '<success>Jail <warn>%jail%<success> set at <text>%location%'
+shadowmute:
+  usage: '<error>Usage: <warn>/shadowmute <player>'
+  enabled: '<success>Shadow mute enabled for <warn>%player%<success>.'
+  disabled: '<warn>Shadow mute disabled for <text>%player%<warn>.'
+staffnote:
+  usage: '<error>Usage: <warn>/staffnote <player> <note>'
+  done: '<success>Added staff note for <warn>%player%<success>.'
+stafflog:
+  usage: '<error>Usage: <warn>/stafflog <player> [limit]'
+  empty: '<subtle>No moderation history found for <text>%player%<subtle>.'
+  header: '<warn>Moderation history for <text>%player%'
+  line: '<subtle>%time% <info>%action% <subtle>by <text>%actor%<subtle>: %details%'
+chat:
+  muted: '<error>You are muted for another <warn>%duration%<error>.'
+  frozen: '<error>You cannot chat while frozen.'
+move:
+  frozen: '<error>You cannot move while frozen.'
+interact:
+  frozen: '<error>You cannot do that while frozen.'
+  jailed: '<error>You cannot do that while jailed.'

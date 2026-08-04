@@ -135,6 +135,95 @@ public final class AegisGuardHookService {
         return rawPlot(location) != null;
     }
 
+    /**
+     * Soft-reads the player's AegisGuard language style when available.
+     * Returns null when AegisGuard is absent or no style can be resolved.
+     */
+    public String resolveLanguageStyle(Player player) {
+        if (!state.available() || state.plugin() == null) {
+            return null;
+        }
+
+        try {
+            Object instance = invokeStatic(Class.forName("com.aegisguard.AegisGuard"), "getInstance");
+            if (instance == null) {
+                instance = state.plugin();
+            }
+            Object codex = invoke(instance, "codex");
+            if (codex == null) {
+                codex = invoke(instance, "getCodex");
+            }
+            if (codex == null) {
+                Object api = invoke(instance, "api");
+                if (api == null) {
+                    api = invoke(instance, "getApi");
+                }
+                if (api != null) {
+                    codex = invoke(api, "codex");
+                    if (codex == null) {
+                        codex = invoke(api, "getCodex");
+                    }
+                }
+            }
+            if (codex != null && player != null) {
+                Object style = invoke(codex, "getPlayerStyle", player);
+                if (style != null) {
+                    String value = String.valueOf(style).trim();
+                    if (!value.isBlank() && !"null".equalsIgnoreCase(value)) {
+                        return value;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall through to config-based lookup.
+        }
+
+        try {
+            org.bukkit.configuration.file.FileConfiguration config = state.plugin().getConfig();
+            if (player != null) {
+                String playerStyle = config.getString("localization.player_styles." + player.getUniqueId());
+                if (playerStyle != null && !playerStyle.isBlank()) {
+                    return playerStyle.trim();
+                }
+            }
+            String defaultLanguage = config.getString("localization.default_language");
+            if (defaultLanguage == null || defaultLanguage.isBlank()) {
+                defaultLanguage = config.getString("localization.default_style");
+            }
+            if (defaultLanguage != null && !defaultLanguage.isBlank()) {
+                return defaultLanguage.trim();
+            }
+        } catch (Exception ignored) {
+            // Soft hook only.
+        }
+        return null;
+    }
+
+    private static Object invoke(Object target, String methodName, Object... args) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            Class<?>[] types = new Class<?>[args.length];
+            for (int index = 0; index < args.length; index++) {
+                Object arg = args[index];
+                if (arg instanceof Player) {
+                    types[index] = Player.class;
+                } else if (arg instanceof String) {
+                    types[index] = String.class;
+                } else if (arg instanceof Boolean) {
+                    types[index] = boolean.class;
+                } else {
+                    types[index] = arg.getClass();
+                }
+            }
+            Method method = target.getClass().getMethod(methodName, types);
+            return method.invoke(target, args);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
+            return null;
+        }
+    }
+
     private Object rawPlot(Location location) {
         if (!state.available() || state.plots() == null || state.plotAtMethod() == null || location == null) {
             return null;
@@ -150,18 +239,6 @@ public final class AegisGuardHookService {
         try {
             Method method = type.getMethod(methodName);
             return method.invoke(null);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
-            return null;
-        }
-    }
-
-    private static Object invoke(Object target, String methodName) {
-        if (target == null) {
-            return null;
-        }
-        try {
-            Method method = target.getClass().getMethod(methodName);
-            return method.invoke(target);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
             return null;
         }

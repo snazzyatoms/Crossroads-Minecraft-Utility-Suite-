@@ -5,9 +5,12 @@ import dev.crossroadsmc.crossroads.api.event.HomeTeleportEvent;
 import dev.crossroadsmc.crossroads.model.KitDefinition;
 import dev.crossroadsmc.crossroads.model.MailMessage;
 import dev.crossroadsmc.crossroads.model.ModerationLogEntry;
+import dev.crossroadsmc.crossroads.model.PermissionGroup;
+import dev.crossroadsmc.crossroads.model.PermissionNode;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
 import dev.crossroadsmc.crossroads.model.TeleportRequest;
+import dev.crossroadsmc.crossroads.service.EconomyService;
 import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.DurationParser;
 import dev.crossroadsmc.crossroads.util.LocationFormatter;
@@ -21,7 +24,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
@@ -102,6 +104,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             case "help" -> handleHelp(sender, args);
             case "info" -> handleInfo(sender, args);
             case "nick" -> handleNick(sender, args);
+            case "language" -> handleLanguage(sender, args);
+            case "balance" -> handleBalance(sender, args);
+            case "pay" -> handlePay(sender, args);
+            case "baltop" -> handleBalTop(sender, args);
+            case "eco" -> handleEco(sender, args);
+            case "crperms", "cperm" -> handleCrPerms(sender, args);
             case "crossroads" -> handleCrossroads(sender, args);
             default -> false;
         };
@@ -118,13 +126,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         return switch (name) {
             case "home", "delhome" -> args.length == 1 ? filterPrefix(accessibleHomeNames(sender), args[0]) : Collections.emptyList();
             case "warp", "delwarp" -> args.length == 1 ? filterPrefix(accessibleWarpNames(sender), args[0]) : Collections.emptyList();
-            case "msg", "ignore", "tpa", "tpahere", "kick", "freeze", "mute", "jail", "shadowmute" ->
+            case "msg", "ignore", "tpa", "tpahere", "kick", "freeze", "mute", "jail", "shadowmute", "pay" ->
                 args.length == 1 ? filterPrefix(onlineNames(sender), args[0]) : Collections.emptyList();
-            case "reply", "tpaccept", "tpdeny", "tpacancel", "fly", "vanish", "staffmode", "socialspy", "back", "rtp", "motd", "rules" ->
+            case "reply", "tpaccept", "tpdeny", "tpacancel", "fly", "vanish", "staffmode", "socialspy", "back", "rtp", "motd", "rules", "baltop" ->
                 Collections.emptyList();
-            case "unfreeze", "unmute", "warn", "stafflog", "history", "seen", "unban", "unjail", "staffnote" ->
+            case "unfreeze", "unmute", "warn", "stafflog", "history", "seen", "unban", "unjail", "staffnote", "balance" ->
                 args.length == 1 ? filterPrefix(knownNames(), args[0]) : Collections.emptyList();
-            case "setjail" -> args.length == 1 ? Collections.emptyList() : Collections.emptyList();
+            case "setjail" -> Collections.emptyList();
             case "mail" -> {
                 if (args.length == 1) {
                     yield filterPrefix(List.of("send", "read", "clear", "inbox"), args[0]);
@@ -139,6 +147,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 : Collections.emptyList();
             case "help" -> args.length == 1 ? filterPrefix(new ArrayList<>(plugin.getTextPageService().availableHelpPages()), args[0]) : Collections.emptyList();
             case "info" -> args.length == 1 ? filterPrefix(new ArrayList<>(plugin.getTextPageService().availableInfoPages()), args[0]) : Collections.emptyList();
+            case "language" -> tabCompleteLanguage(args);
+            case "eco" -> tabCompleteEco(args);
+            case "crperms", "cperm" -> tabCompleteCrPerms(args);
             case "crossroads" -> tabCompleteCrossroads(args);
             default -> Collections.emptyList();
         };
@@ -146,13 +157,89 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
     private List<String> tabCompleteCrossroads(String[] args) {
         if (args.length == 1) {
-            return filterPrefix(List.of("reload", "backup", "about", "modules", "import"), args[0]);
+            return filterPrefix(List.of("reload", "backup", "about", "modules", "import", "language", "perms"), args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("backup")) {
             return filterPrefix(List.of("create"), args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("import")) {
             return filterPrefix(List.of("essentials"), args[1]);
+        }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("language")) {
+            return tabCompleteLanguage(Arrays.copyOfRange(args, 1, args.length));
+        }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("perms")) {
+            return tabCompleteCrPerms(Arrays.copyOfRange(args, 1, args.length));
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> tabCompleteLanguage(String[] args) {
+        if (args.length == 1) {
+            List<String> options = new ArrayList<>();
+            options.add("list");
+            options.add("sync");
+            options.addAll(plugin.getLanguageService().getAvailableLanguages());
+            return filterPrefix(options, args[0]);
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> tabCompleteEco(String[] args) {
+        if (args.length == 1) {
+            return filterPrefix(List.of("give", "take", "set"), args[0]);
+        }
+        if (args.length == 2) {
+            return filterPrefix(knownNames(), args[1]);
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> tabCompleteCrPerms(String[] args) {
+        if (args.length == 1) {
+            return filterPrefix(List.of("user", "group", "list", "check", "import"), args[0]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("user")) {
+            return filterPrefix(knownNames(), args[1]);
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("user")) {
+            return filterPrefix(List.of("info", "permission", "parent", "group"), args[2]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("permission")) {
+            return filterPrefix(List.of("set", "unset"), args[3]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("parent")) {
+            return filterPrefix(List.of("add", "remove"), args[3]);
+        }
+        if (args.length == 5 && args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("parent")) {
+            return filterPrefix(plugin.getPermissionService().getGroups().keySet(), args[4]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("group")) {
+            return filterPrefix(plugin.getPermissionService().getGroups().keySet(), args[3]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("group")) {
+            return filterPrefix(plugin.getPermissionService().getGroups().keySet(), args[1]);
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("group")) {
+            return filterPrefix(List.of("create", "delete", "info", "permission", "parent", "meta"), args[2]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("permission")) {
+            return filterPrefix(List.of("set", "unset"), args[3]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("parent")) {
+            return filterPrefix(List.of("add", "remove"), args[3]);
+        }
+        if (args.length == 5 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("parent")) {
+            return filterPrefix(plugin.getPermissionService().getGroups().keySet(), args[4]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("meta")) {
+            return filterPrefix(List.of("prefix", "suffix", "weight"), args[3]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("check")) {
+            return filterPrefix(knownNames(), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("import")) {
+            return filterPrefix(List.of("luckperms"), args[1]);
         }
         return Collections.emptyList();
     }
@@ -175,30 +262,30 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             }
         }
         if (savedLocation == null) {
-            Chat.send(plugin, player, "<error>You do not have a home named <warn>" + scopedName.raw() + "<error>.");
+            msg(player, "travel.home.not-found", "%home%", scopedName.raw());
             return true;
         }
 
         Location destination = savedLocation.toLocation();
         if (destination == null) {
-            Chat.send(plugin, player, "<error>That home points to a world that is not loaded.");
+            msg(player, "travel.home.world-unloaded");
             return true;
         }
 
         HomeTeleportEvent event = new HomeTeleportEvent(player, scopedName.name(), destination);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled() || event.getDestination() == null) {
-            Chat.send(plugin, player, "<error>Your home teleport was cancelled.");
+            msg(player, "travel.home.cancelled");
             return true;
         }
 
         String failure = chargeTeleportCost(player, "home");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
-        if (teleport(player, event.getDestination(), "<success>Welcome back to home <warn>" + scopedName.raw() + "<success>.")) {
+        if (teleport(player, event.getDestination(), "travel.home.teleported", "%home%", scopedName.raw())) {
             applyCooldown(player, "home");
         }
         return true;
@@ -216,13 +303,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (!data.hasHome(scopedName.scope(), scopedName.name())
             && !player.hasPermission("crossroads.home.unlimited")
             && data.getHomeCount(scopedName.scope()) >= homeLimit) {
-            Chat.send(plugin, player, "<error>You have reached your home limit of <warn>" + homeLimit + "<error> in <warn>" + scopedName.scope() + "<error>.");
+            msg(player, "travel.home.limit", "%limit%", String.valueOf(homeLimit), "%scope%", scopedName.scope());
             return true;
         }
 
         data.setHome(scopedName.scope(), scopedName.name(), SavedLocation.fromLocation(player.getLocation()));
         plugin.getPlayerDataService().save(player);
-        Chat.send(plugin, player, "<success>Saved home <warn>" + scopedName.raw() + "<success> at <text>" + LocationFormatter.human(player.getLocation()));
+        msg(player, "travel.home.saved", "%home%", scopedName.raw(), "%location%", LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -235,12 +322,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         ScopedName scopedName = parseScopedName(player, args.length > 0 ? args[0] : defaultHomeName(), defaultHomeName());
         SavedLocation removed = plugin.getPlayerDataService().get(player).removeHome(scopedName.scope(), scopedName.name());
         if (removed == null) {
-            Chat.send(plugin, player, "<error>No home named <warn>" + scopedName.raw() + "<error> exists.");
+            msg(player, "travel.home.deleted-missing", "%home%", scopedName.raw());
             return true;
         }
 
         plugin.getPlayerDataService().save(player);
-        Chat.send(plugin, player, "<success>Deleted home <warn>" + scopedName.raw() + "<success>.");
+        msg(player, "travel.home.deleted", "%home%", scopedName.raw());
         return true;
     }
 
@@ -252,11 +339,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         List<String> names = accessibleHomeNames(player);
         if (names.isEmpty()) {
-            Chat.send(plugin, player, "<subtle>You have not set any homes yet.");
+            msg(player, "travel.home.none");
             return true;
         }
 
-        Chat.send(plugin, player, "<warn>Your homes<subtle>: <text>" + String.join(", ", names));
+        msg(player, "travel.home.list", "%homes%", String.join(", ", names));
         return true;
     }
 
@@ -274,10 +361,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             }
             List<String> warps = plugin.getWarpService().getAvailableWarpNames(profile);
             if (warps.isEmpty()) {
-                Chat.send(plugin, player, "<subtle>No warps are available right now.");
+                msg(player, "travel.warp.none-available");
                 return true;
             }
-            Chat.send(plugin, player, "<info>Available warps<subtle>: <text>" + String.join(", ", warps));
+            msg(player, "travel.warp.available", "%warps%", String.join(", ", warps));
             return true;
         }
 
@@ -288,23 +375,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         ScopedName scopedName = parseScopedName(player, args[0], args[0]);
         SavedLocation warp = plugin.getWarpService().getWarp(scopedName.scope(), scopedName.name());
         if (warp == null) {
-            Chat.send(plugin, player, "<error>Unknown warp <warn>" + scopedName.raw() + "<error>.");
+            msg(player, "travel.warp.unknown", "%warp%", scopedName.raw());
             return true;
         }
 
         Location destination = warp.toLocation();
         if (destination == null) {
-            Chat.send(plugin, player, "<error>That warp points to a world that is not loaded.");
+            msg(player, "travel.warp.world-unloaded");
             return true;
         }
 
         String failure = chargeTeleportCost(player, "warp");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
-        if (teleport(player, destination, "<success>Warped to <warn>" + scopedName.raw() + "<success>.")) {
+        if (teleport(player, destination, "travel.warp.teleported", "%warp%", scopedName.raw())) {
             applyCooldown(player, "warp");
         }
         return true;
@@ -316,13 +403,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/setwarp [profile:]<name>");
+            msg(player, "travel.warp.usage-set");
             return true;
         }
 
         ScopedName scopedName = parseScopedName(player, args[0], args[0]);
         plugin.getWarpService().setWarp(scopedName.scope(), scopedName.name(), SavedLocation.fromLocation(player.getLocation()));
-        Chat.send(plugin, player, "<success>Saved warp <warn>" + scopedName.raw() + "<success> at <text>" + LocationFormatter.human(player.getLocation()));
+        msg(player, "travel.warp.saved", "%warp%", scopedName.raw(), "%location%", LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -332,18 +419,18 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/delwarp [profile:]<name>");
+            msg(player, "travel.warp.usage-del");
             return true;
         }
 
         ScopedName scopedName = parseScopedName(player, args[0], args[0]);
         SavedLocation removed = plugin.getWarpService().removeWarp(scopedName.scope(), scopedName.name());
         if (removed == null) {
-            Chat.send(plugin, player, "<error>Unknown warp <warn>" + scopedName.raw() + "<error>.");
+            msg(player, "travel.warp.unknown", "%warp%", scopedName.raw());
             return true;
         }
 
-        Chat.send(plugin, player, "<success>Deleted warp <warn>" + scopedName.raw() + "<success>.");
+        msg(player, "travel.warp.deleted", "%warp%", scopedName.raw());
         return true;
     }
 
@@ -355,11 +442,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         List<String> warps = plugin.getWarpService().getAvailableWarpNames(currentProfile(player));
         if (warps.isEmpty()) {
-            Chat.send(plugin, player, "<subtle>No warps have been created yet.");
+            msg(player, "travel.warp.none-created");
             return true;
         }
 
-        Chat.send(plugin, player, "<warn>Warps<subtle>: <text>" + String.join(", ", warps));
+        msg(player, "travel.warp.list", "%warps%", String.join(", ", warps));
         return true;
     }
 
@@ -374,23 +461,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation spawn = plugin.getSpawnService().getSpawn(currentProfile(player));
         if (spawn == null) {
-            Chat.send(plugin, player, "<error>Spawn has not been configured yet.");
+            msg(player, "travel.spawn.missing");
             return true;
         }
 
         Location location = spawn.toLocation();
         if (location == null) {
-            Chat.send(plugin, player, "<error>Spawn points to a world that is not loaded.");
+            msg(player, "travel.spawn.world-unloaded");
             return true;
         }
 
         String failure = chargeTeleportCost(player, "spawn");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
-        if (teleport(player, location, "<success>Teleported to spawn.")) {
+        if (teleport(player, location, "travel.spawn.teleported")) {
             applyCooldown(player, "spawn");
         }
         return true;
@@ -404,7 +491,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         String profile = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : currentProfile(player);
         plugin.getSpawnService().setSpawn(profile, SavedLocation.fromLocation(player.getLocation()));
-        Chat.send(plugin, player, "<success>Spawn profile <warn>" + profile + "<success> updated to <text>" + LocationFormatter.human(player.getLocation()));
+        msg(player, "travel.spawn.updated", "%profile%", profile, "%location%", LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -419,23 +506,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         SavedLocation backLocation = plugin.getBackService().get(player);
         if (backLocation == null) {
-            Chat.send(plugin, player, "<error>No previous location is available yet.");
+            msg(player, "travel.back.missing");
             return true;
         }
 
         Location location = backLocation.toLocation();
         if (location == null) {
-            Chat.send(plugin, player, "<error>Your back location points to a world that is not loaded.");
+            msg(player, "travel.back.world-unloaded");
             return true;
         }
 
         String failure = chargeTeleportCost(player, "back");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
-        if (teleport(player, location, "<success>Returned to your previous location.")) {
+        if (teleport(player, location, "travel.back.teleported")) {
             applyCooldown(player, "back");
         }
         return true;
@@ -447,17 +534,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/msg <player> <message>");
+            msg(player, "social.msg.usage");
             return true;
         }
 
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null || !target.isOnline()) {
-            Chat.send(plugin, player, "<error>That player is not online.");
+            msg(player, "common.player-not-online");
             return true;
         }
         if (target.equals(player)) {
-            Chat.send(plugin, player, "<error>Sending yourself a DM is not especially productive.");
+            msg(player, "social.msg.self");
             return true;
         }
 
@@ -472,13 +559,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/reply <message>");
+            msg(player, "social.reply.usage");
             return true;
         }
 
         Player target = plugin.getMessagingService().getReplyTarget(player);
         if (target == null) {
-            Chat.send(plugin, player, "<error>Nobody has messaged you recently.");
+            msg(player, "social.reply.none");
             return true;
         }
 
@@ -492,24 +579,22 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/ignore <player>");
+            msg(player, "social.ignore.usage");
             return true;
         }
 
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, player, "<error>That player is not online.");
+            msg(player, "common.player-not-online");
             return true;
         }
         if (target.equals(player)) {
-            Chat.send(plugin, player, "<error>Ignoring yourself is not supported.");
+            msg(player, "social.ignore.self");
             return true;
         }
 
         boolean ignored = plugin.getMessagingService().toggleIgnore(player, target);
-        Chat.send(plugin, player, ignored
-            ? "<success>You are now ignoring <warn>" + target.getName() + "<success>."
-            : "<success>You are no longer ignoring <warn>" + target.getName() + "<success>.");
+        msg(player, ignored ? "social.ignore.enabled" : "social.ignore.disabled", "%player%", target.getName());
         return true;
     }
 
@@ -523,21 +608,25 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (args.length == 0 || args[0].equalsIgnoreCase("inbox")) {
             List<MailMessage> mail = data.getMailbox();
             if (mail.isEmpty()) {
-                Chat.send(plugin, player, "<subtle>Your mailbox is empty.");
+                msg(player, "social.mail.empty");
                 return true;
             }
-            Chat.send(plugin, player, "<warn>Your Mail");
+            msg(player, "social.mail.header");
             for (int index = 0; index < mail.size(); index++) {
                 MailMessage message = mail.get(index);
                 String marker = message.isRead() ? "<muted>" : "<success>";
-                Chat.sendRaw(plugin, player, marker + "#" + (index + 1) + " <text>" + message.getSenderName() + "<subtle>: " + message.getBody());
+                msgRaw(player, "social.mail.line",
+                    "%marker%", marker,
+                    "%id%", String.valueOf(index + 1),
+                    "%sender%", message.getSenderName(),
+                    "%body%", message.getBody());
             }
             return true;
         }
 
         if (args[0].equalsIgnoreCase("send")) {
             if (args.length < 3) {
-                Chat.send(plugin, player, "<error>Usage: <warn>/mail send <player> <message>");
+                msg(player, "social.mail.send-usage");
                 return true;
             }
             OfflinePlayer target = requireKnownOfflinePlayer(player, args[1]);
@@ -545,7 +634,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 return true;
             }
             if (target.getUniqueId().equals(player.getUniqueId())) {
-                Chat.send(plugin, player, "<error>You cannot mail yourself.");
+                msg(player, "social.mail.self");
                 return true;
             }
             PlayerData targetData = plugin.getPlayerDataService().get(target.getUniqueId());
@@ -553,53 +642,53 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 String.join(" ", Arrays.copyOfRange(args, 2, args.length)), false));
             plugin.getPlayerDataService().save(target.getUniqueId());
             if (target.isOnline() && target.getPlayer() != null) {
-                Chat.send(plugin, target.getPlayer(), "<info>You received new mail from <warn>" + player.getName() + "<info>.");
+                msg(target.getPlayer(), "social.mail.received", "%player%", player.getName());
             }
-            Chat.send(plugin, player, "<success>Mail sent to <warn>" + (target.getName() == null ? args[1] : target.getName()) + "<success>.");
+            msg(player, "social.mail.sent", "%player%", target.getName() == null ? args[1] : target.getName());
             return true;
         }
 
         if (args[0].equalsIgnoreCase("read")) {
             if (args.length < 2) {
-                Chat.send(plugin, player, "<error>Usage: <warn>/mail read <id>");
+                msg(player, "social.mail.read-usage");
                 return true;
             }
             int index = parseIndex(args[1]);
             MailMessage message = data.getMail(index);
             if (message == null) {
-                Chat.send(plugin, player, "<error>No mail entry exists with that id.");
+                msg(player, "social.mail.missing");
                 return true;
             }
             data.markMailRead(index);
             plugin.getPlayerDataService().save(player);
-            Chat.send(plugin, player, "<warn>Mail from <text>" + message.getSenderName());
-            Chat.sendRaw(plugin, player, "<subtle>" + message.getBody());
+            msg(player, "social.mail.from", "%sender%", message.getSenderName());
+            msgRaw(player, "social.mail.body", "%body%", message.getBody());
             return true;
         }
 
         if (args[0].equalsIgnoreCase("clear")) {
             if (args.length < 2) {
-                Chat.send(plugin, player, "<error>Usage: <warn>/mail clear <id|all>");
+                msg(player, "social.mail.clear-usage");
                 return true;
             }
             if (args[1].equalsIgnoreCase("all")) {
                 data.clearMail();
                 plugin.getPlayerDataService().save(player);
-                Chat.send(plugin, player, "<success>Your mailbox has been cleared.");
+                msg(player, "social.mail.cleared");
                 return true;
             }
             int index = parseIndex(args[1]);
             MailMessage removed = data.removeMail(index);
             if (removed == null) {
-                Chat.send(plugin, player, "<error>No mail entry exists with that id.");
+                msg(player, "social.mail.missing");
                 return true;
             }
             plugin.getPlayerDataService().save(player);
-            Chat.send(plugin, player, "<success>Removed mail from <warn>" + removed.getSenderName() + "<success>.");
+            msg(player, "social.mail.removed", "%sender%", removed.getSenderName());
             return true;
         }
 
-        Chat.send(plugin, player, "<error>Usage: <warn>/mail <send|read|clear|inbox>");
+        msg(player, "social.mail.usage");
         return true;
     }
 
@@ -609,7 +698,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, hereRequest ? "<error>Usage: <warn>/tpahere <player>" : "<error>Usage: <warn>/tpa <player>");
+            msg(player, hereRequest ? "travel.tpahere.usage" : "travel.tpa.usage");
             return true;
         }
         if (!checkCooldown(player, hereRequest ? "tpahere" : "tpa")) {
@@ -618,26 +707,24 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null || !target.isOnline()) {
-            Chat.send(plugin, player, "<error>That player is not online.");
+            msg(player, "common.player-not-online");
             return true;
         }
         if (target.equals(player)) {
-            Chat.send(plugin, player, "<error>You cannot send a teleport request to yourself.");
+            msg(player, "travel.tpa.self");
             return true;
         }
 
         String failure = chargeTeleportCost(player, hereRequest ? "tpahere" : "tpa");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
         plugin.getTeleportRequestService().create(player, target, hereRequest);
         applyCooldown(player, hereRequest ? "tpahere" : "tpa");
-        Chat.send(plugin, player, "<success>Teleport request sent to <warn>" + target.getName() + "<success>.");
-        Chat.send(plugin, target, hereRequest
-            ? "<info><warn>" + player.getName() + "<info> wants you to teleport to them. Use <warn>/tpaccept<info> or <warn>/tpdeny<info>."
-            : "<info><warn>" + player.getName() + "<info> wants to teleport to you. Use <warn>/tpaccept<info> or <warn>/tpdeny<info>.");
+        msg(player, "travel.tpa.sent", "%player%", target.getName());
+        msg(target, hereRequest ? "travel.tpahere.incoming" : "travel.tpa.incoming", "%player%", player.getName());
         return true;
     }
 
@@ -648,23 +735,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         TeleportRequest request = plugin.getTeleportRequestService().accept(player);
         if (request == null) {
-            Chat.send(plugin, player, "<error>You do not have any pending teleport requests.");
+            msg(player, "travel.tpa.none");
             return true;
         }
 
         Player requester = plugin.getServer().getPlayer(request.getRequesterUuid());
         if (requester == null || !requester.isOnline()) {
-            Chat.send(plugin, player, "<error>The requester is no longer online.");
+            msg(player, "travel.tpa.requester-offline");
             return true;
         }
 
         if (request.isHereRequest()) {
-            if (teleport(player, requester.getLocation(), "<success>Teleport request accepted.")) {
-                Chat.send(plugin, requester, "<success><warn>" + player.getName() + "<success> accepted your request.");
+            if (teleport(player, requester.getLocation(), "travel.tpa.accepted-target")) {
+                msg(requester, "travel.tpa.accepted-requester", "%player%", player.getName());
             }
         } else {
-            if (teleport(requester, player.getLocation(), "<success><warn>" + player.getName() + "<success> accepted your request.")) {
-                Chat.send(plugin, player, "<success>Teleport request accepted.");
+            if (teleport(requester, player.getLocation(), "travel.tpa.accepted-requester", "%player%", player.getName())) {
+                msg(player, "travel.tpa.accepted-target");
             }
         }
         return true;
@@ -677,14 +764,14 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         TeleportRequest request = plugin.getTeleportRequestService().deny(player);
         if (request == null) {
-            Chat.send(plugin, player, "<error>You do not have any pending teleport requests.");
+            msg(player, "travel.tpa.none");
             return true;
         }
         Player requester = plugin.getServer().getPlayer(request.getRequesterUuid());
         if (requester != null && requester.isOnline()) {
-            Chat.send(plugin, requester, "<warn>" + player.getName() + "<error> denied your teleport request.");
+            msg(requester, "travel.tpa.denied-requester", "%player%", player.getName());
         }
-        Chat.send(plugin, player, "<success>Teleport request denied.");
+        msg(player, "travel.tpa.denied-target");
         return true;
     }
 
@@ -694,10 +781,10 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (!plugin.getTeleportRequestService().cancel(player)) {
-            Chat.send(plugin, player, "<error>You do not have a pending teleport request to cancel.");
+            msg(player, "travel.tpa.cancel-none");
             return true;
         }
-        Chat.send(plugin, player, "<success>Teleport request cancelled.");
+        msg(player, "travel.tpa.cancelled");
         return true;
     }
 
@@ -710,13 +797,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (plugin.getConfig().getStringList("rtp.disabled-worlds").contains(player.getWorld().getName())) {
-            Chat.send(plugin, player, "<error>Random teleport is disabled in this world.");
+            msg(player, "travel.rtp.disabled-world");
             return true;
         }
 
         String failure = chargeTeleportCost(player, "rtp");
         if (failure != null) {
-            Chat.send(plugin, player, "<error>" + failure);
+            sendFailure(player, failure);
             return true;
         }
 
@@ -739,13 +826,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 && plugin.getProtectionCompatibilityService().isProtected(target)) {
                 continue;
             }
-            if (teleport(player, target, "<success>Random teleport complete.")) {
+            if (teleport(player, target, "travel.rtp.teleported")) {
                 applyCooldown(player, "rtp");
                 return true;
             }
         }
 
-        Chat.send(plugin, player, "<error>Random teleport could not find a safe destination.");
+        msg(player, "travel.rtp.failed");
         return true;
     }
 
@@ -755,7 +842,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         boolean enabled = plugin.getStaffService().toggleFly(player);
-        Chat.send(plugin, player, enabled ? "<success>Flight enabled." : "<warn>Flight disabled.");
+        msg(player, enabled ? "staff.fly.enabled" : "staff.fly.disabled");
         return true;
     }
 
@@ -765,7 +852,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         boolean enabled = plugin.getStaffService().toggleVanish(player);
-        Chat.send(plugin, player, enabled ? "<success>You vanished from regular players." : "<warn>You are visible again.");
+        msg(player, enabled ? "staff.vanish.enabled" : "staff.vanish.disabled");
         return true;
     }
 
@@ -775,9 +862,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         boolean enabled = plugin.getStaffService().toggleStaffMode(player);
-        Chat.send(plugin, player, enabled
-            ? "<success>Staff mode enabled. Your moderation toolkit is ready."
-            : "<warn>Staff mode disabled. Your normal inventory has been restored.");
+        msg(player, enabled ? "staff.staffmode.enabled" : "staff.staffmode.disabled");
         return true;
     }
 
@@ -787,7 +872,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         boolean enabled = plugin.getStaffService().toggleSocialSpy(player);
-        Chat.send(plugin, player, enabled ? "<success>SocialSpy enabled." : "<warn>SocialSpy disabled.");
+        msg(player, enabled ? "staff.socialspy.enabled" : "staff.socialspy.disabled");
         return true;
     }
 
@@ -797,16 +882,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/invsee <player>");
+            msg(player, "staff.invsee.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, player, "<error>That player is not online.");
+            msg(player, "common.player-not-online");
             return true;
         }
         player.openInventory(target.getInventory());
-        Chat.send(plugin, player, "<success>Inspecting <warn>" + target.getName() + "<success>'s inventory.");
+        msg(player, "staff.invsee.inspecting", "%player%", target.getName());
         return true;
     }
 
@@ -816,18 +901,18 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/endersee <player>");
+            msg(player, "staff.endersee.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, player, "<error>That player is not online.");
+            msg(player, "common.player-not-online");
             return true;
         }
         Inventory inventory = Bukkit.createInventory(target, target.getEnderChest().getSize(), target.getName() + "'s Ender Chest");
         inventory.setContents(target.getEnderChest().getContents());
         player.openInventory(inventory);
-        Chat.send(plugin, player, "<success>Inspecting <warn>" + target.getName() + "<success>'s ender chest.");
+        msg(player, "staff.endersee.inspecting", "%player%", target.getName());
         return true;
     }
 
@@ -836,18 +921,18 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/freeze <player> [reason]");
+            msg(sender, "moderation.freeze.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, sender, "<error>That player is not online.");
+            msg(sender, "common.player-not-online");
             return true;
         }
         String reason = args.length > 1 ? String.join(" ", Arrays.copyOfRange(args, 1, args.length)) : "Under staff review";
         plugin.getModerationService().freeze(sender, target, reason);
-        Chat.send(plugin, sender, "<success>Frozen <warn>" + target.getName() + "<success>.");
-        Chat.send(plugin, target, "<error>You have been frozen by staff. <subtle>" + reason);
+        msg(sender, "moderation.freeze.done", "%player%", target.getName());
+        msg(target, "moderation.freeze.notify", "%reason%", reason);
         return true;
     }
 
@@ -856,7 +941,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/unfreeze <player>");
+            msg(sender, "moderation.unfreeze.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -865,9 +950,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         plugin.getModerationService().unfreeze(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
-            Chat.send(plugin, target.getPlayer(), "<success>You are no longer frozen.");
+            msg(target.getPlayer(), "moderation.unfreeze.notify");
         }
-        Chat.send(plugin, sender, "<success>Unfroze <warn>" + target.getName() + "<success>.");
+        msg(sender, "moderation.unfreeze.done", "%player%", target.getName());
         return true;
     }
 
@@ -876,23 +961,24 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/mute <player> <duration> [reason]");
+            msg(sender, "moderation.mute.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, sender, "<error>That player is not online.");
+            msg(sender, "common.player-not-online");
             return true;
         }
         long seconds = DurationParser.parseToSeconds(args[1]);
         if (seconds < 0L) {
-            Chat.send(plugin, sender, "<error>Invalid duration. Use values like <warn>30m<error>, <warn>6h<error>, or <warn>perm<error>.");
+            msg(sender, "moderation.mute.usage");
             return true;
         }
         String reason = args.length > 2 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : "Muted by staff";
+        String durationText = formatDurationLabel(seconds);
         plugin.getModerationService().mute(sender, target, seconds, reason);
-        Chat.send(plugin, sender, "<success>Muted <warn>" + target.getName() + "<success>.");
-        Chat.send(plugin, target, "<error>You have been muted. Reason: <text>" + reason);
+        msg(sender, "moderation.mute.done", "%player%", target.getName(), "%duration%", durationText);
+        msg(target, "moderation.mute.notify", "%duration%", durationText, "%reason%", reason);
         return true;
     }
 
@@ -901,7 +987,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/unmute <player>");
+            msg(sender, "moderation.unmute.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -910,9 +996,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         plugin.getModerationService().unmute(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
-            Chat.send(plugin, target.getPlayer(), "<success>You have been unmuted.");
+            msg(target.getPlayer(), "moderation.unmute.notify");
         }
-        Chat.send(plugin, sender, "<success>Unmuted <warn>" + target.getName() + "<success>.");
+        msg(sender, "moderation.unmute.done", "%player%", target.getName());
         return true;
     }
 
@@ -921,7 +1007,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/warn <player> [category] <reason>");
+            msg(sender, "moderation.warn.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -934,9 +1020,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             : String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         plugin.getModerationService().warn(sender, target, "[" + category + "] " + reason);
         if (target.isOnline() && target.getPlayer() != null) {
-            Chat.send(plugin, target.getPlayer(), "<error>Warning issued: <text>" + reason);
+            msg(target.getPlayer(), "moderation.warn.notify", "%reason%", reason);
         }
-        Chat.send(plugin, sender, "<success>Warning logged for <warn>" + target.getName() + "<success>.");
+        msg(sender, "moderation.warn.done", "%player%", target.getName());
         return true;
     }
 
@@ -945,7 +1031,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/stafflog <player> [limit]");
+            msg(sender, "moderation.stafflog.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -957,16 +1043,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             try {
                 limit = Integer.parseInt(args[1]);
             } catch (NumberFormatException exception) {
-                Chat.send(plugin, sender, "<error>Limit must be a number.");
+                msg(sender, "moderation.stafflog.usage");
                 return true;
             }
         }
         List<ModerationLogEntry> entries = plugin.getModerationService().getLogs(target, Math.max(1, Math.min(limit, 25)));
         if (entries.isEmpty()) {
-            Chat.send(plugin, sender, "<subtle>No moderation history found for <text>" + target.getName() + "<subtle>.");
+            msg(sender, "moderation.stafflog.empty", "%player%", target.getName());
             return true;
         }
-        Chat.send(plugin, sender, "<warn>Moderation log for <text>" + target.getName());
+        msg(sender, "moderation.stafflog.header", "%player%", target.getName());
         for (ModerationLogEntry entry : entries) {
             Chat.sendRaw(plugin, sender, entry.toDisplayLine());
         }
@@ -978,7 +1064,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/seen <player>");
+            msg(sender, "staff.seen.usage");
             return true;
         }
 
@@ -987,17 +1073,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (target.isOnline()) {
-            Chat.send(plugin, sender, "<warn>" + target.getName() + " <success>is online right now.");
+            msg(sender, "staff.seen.online", "%player%", target.getName());
             return true;
         }
 
         PlayerData data = plugin.getModerationService().getPlayerData(target.getUniqueId());
         if (data.getLastQuitAt() <= 0L) {
-            Chat.send(plugin, sender, "<subtle>No recorded activity for <text>" + args[0] + "<subtle> yet.");
+            msg(sender, "staff.seen.never", "%player%", args[0]);
             return true;
         }
         long seconds = Math.max(1L, (System.currentTimeMillis() - data.getLastQuitAt()) / 1000L);
-        Chat.send(plugin, sender, "<warn>" + data.getLastKnownName() + " <subtle>was last seen <text>" + TimeFormatter.duration(seconds) + " <subtle>ago.");
+        msg(sender, "staff.seen.offline", "%player%", data.getLastKnownName(), "%time%", TimeFormatter.duration(seconds));
         return true;
     }
 
@@ -1006,17 +1092,18 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/kick <player> [reason]");
+            msg(sender, "moderation.kick.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, sender, "<error>That player is not online.");
+            msg(sender, "common.player-not-online");
             return true;
         }
         String reason = args.length > 1 ? String.join(" ", Arrays.copyOfRange(args, 1, args.length)) : "Removed by staff";
-        plugin.getModerationService().kick(sender, target, reason);
-        Chat.send(plugin, sender, "<success>Kicked <warn>" + target.getName() + "<success>.");
+        String kickMessage = plugin.getLanguageService().colorize(target, "moderation.kick.message", "%reason%", reason);
+        plugin.getModerationService().kick(sender, target, kickMessage);
+        msg(sender, "moderation.kick.done", "%player%", target.getName());
         return true;
     }
 
@@ -1025,7 +1112,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/tempban <player> <duration> [reason]");
+            msg(sender, "moderation.tempban.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -1034,12 +1121,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         long seconds = DurationParser.parseToSeconds(args[1]);
         if (seconds < 0L) {
-            Chat.send(plugin, sender, "<error>Invalid duration.");
+            msg(sender, "moderation.tempban.usage");
             return true;
         }
         String reason = args.length > 2 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : "Banned by staff";
-        plugin.getModerationService().tempBan(sender, target, seconds, reason);
-        Chat.send(plugin, sender, "<success>Banned <warn>" + target.getName() + "<success>.");
+        String durationText = formatDurationLabel(seconds);
+        CommandSender styleSender = target.isOnline() && target.getPlayer() != null ? target.getPlayer() : sender;
+        String banMessage = plugin.getLanguageService().colorize(styleSender, "moderation.tempban.message",
+            "%duration%", durationText, "%reason%", reason);
+        plugin.getModerationService().tempBan(sender, target, seconds, banMessage);
+        msg(sender, "moderation.tempban.done", "%player%", target.getName(), "%duration%", durationText);
         return true;
     }
 
@@ -1048,7 +1139,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/unban <player>");
+            msg(sender, "moderation.unban.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -1056,7 +1147,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         plugin.getModerationService().unban(sender, target);
-        Chat.send(plugin, sender, "<success>Unbanned <warn>" + target.getName() + "<success>.");
+        msg(sender, "moderation.unban.done", "%player%", target.getName());
         return true;
     }
 
@@ -1065,12 +1156,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/jail <player> <jail> [duration] [reason]");
+            msg(sender, "moderation.jail.usage");
             return true;
         }
         Player target = plugin.getServer().getPlayerExact(args[0]);
         if (target == null) {
-            Chat.send(plugin, sender, "<error>That player is not online.");
+            msg(sender, "common.player-not-online");
             return true;
         }
         long seconds = 1800L;
@@ -1086,10 +1177,11 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         try {
             plugin.getModerationService().jail(sender, target, args[1], seconds, reason);
         } catch (IllegalArgumentException exception) {
-            Chat.send(plugin, sender, "<error>" + exception.getMessage());
+            msg(sender, "moderation.jail.usage");
             return true;
         }
-        Chat.send(plugin, sender, "<success>Jailed <warn>" + target.getName() + "<success> in <warn>" + args[1] + "<success>.");
+        msg(sender, "moderation.jail.done", "%player%", target.getName(), "%jail%", args[1]);
+        msg(target, "moderation.jail.notify", "%reason%", reason);
         return true;
     }
 
@@ -1098,7 +1190,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/unjail <player>");
+            msg(sender, "moderation.unjail.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -1107,9 +1199,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         plugin.getModerationService().unjail(sender, target);
         if (target.isOnline() && target.getPlayer() != null) {
-            Chat.send(plugin, target.getPlayer(), "<success>You have been released from jail.");
+            msg(target.getPlayer(), "moderation.unjail.notify");
         }
-        Chat.send(plugin, sender, "<success>Released <warn>" + target.getName() + "<success> from jail.");
+        msg(sender, "moderation.unjail.done", "%player%", target.getName());
         return true;
     }
 
@@ -1119,11 +1211,13 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/setjail <name>");
+            msg(player, "moderation.setjail.usage");
             return true;
         }
         plugin.getJailService().setJail(args[0], SavedLocation.fromLocation(player.getLocation()));
-        Chat.send(plugin, player, "<success>Saved jail <warn>" + args[0].toLowerCase(Locale.ROOT) + "<success>.");
+        msg(player, "moderation.setjail.done",
+            "%jail%", args[0].toLowerCase(Locale.ROOT),
+            "%location%", LocationFormatter.human(player.getLocation()));
         return true;
     }
 
@@ -1132,7 +1226,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/shadowmute <player>");
+            msg(sender, "moderation.shadowmute.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -1141,9 +1235,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         boolean enabled = !plugin.getModerationService().isShadowMuted(target.getUniqueId());
         plugin.getModerationService().shadowMute(sender, target, enabled);
-        Chat.send(plugin, sender, enabled
-            ? "<success>Shadow mute enabled for <warn>" + target.getName() + "<success>."
-            : "<warn>Shadow mute disabled for <text>" + target.getName() + "<warn>.");
+        msg(sender, enabled ? "moderation.shadowmute.enabled" : "moderation.shadowmute.disabled", "%player%", target.getName());
         return true;
     }
 
@@ -1152,7 +1244,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length < 2) {
-            Chat.send(plugin, sender, "<error>Usage: <warn>/staffnote <player> <note>");
+            msg(sender, "moderation.staffnote.usage");
             return true;
         }
         OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
@@ -1161,7 +1253,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         String note = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         plugin.getModerationService().addStaffNote(sender, target, note);
-        Chat.send(plugin, sender, "<success>Staff note added for <warn>" + target.getName() + "<success>.");
+        msg(sender, "moderation.staffnote.done", "%player%", target.getName());
         return true;
     }
 
@@ -1182,24 +1274,24 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 .sorted()
                 .toList();
             if (available.isEmpty()) {
-                Chat.send(plugin, player, "<subtle>No kits are available for you right now.");
+                msg(player, "kits.usage");
                 return true;
             }
-            Chat.send(plugin, player, "<info>Available kits<subtle>: <text>" + String.join(", ", available));
+            msg(player, "kits.list-header", "%kits%", String.join(", ", available));
             return true;
         }
 
         KitDefinition kit = plugin.getKitService().getKit(args[0]);
         if (kit == null) {
-            Chat.send(plugin, player, "<error>Unknown kit <warn>" + args[0] + "<error>.");
+            msg(player, "kits.unknown", "%kit%", args[0]);
             return true;
         }
         if (kit.getPermission() != null && !kit.getPermission().isBlank() && !player.hasPermission(kit.getPermission())) {
-            Chat.send(plugin, player, "<error>You do not have access to that kit.");
+            msg(player, "kits.no-permission", "%kit%", kit.getKey());
             return true;
         }
         if (!kit.isAvailableIn(profile)) {
-            Chat.send(plugin, player, "<error>That kit is not available in this world profile.");
+            msg(player, "kits.unavailable-profile");
             return true;
         }
 
@@ -1208,13 +1300,16 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         long nextUse = data.getKitCooldown(profile + ":" + kit.getKey());
         if (nextUse > now) {
             long remaining = Math.max(1L, (nextUse - now) / 1000L);
-            Chat.send(plugin, player, "<error>That kit is on cooldown for another <warn>" + TimeFormatter.duration(remaining) + "<error>.");
+            msg(player, "kits.cooldown", "%kit%", kit.getKey(), "%duration%", TimeFormatter.duration(remaining));
             return true;
         }
         if (kit.getCost() > 0.0D) {
             String failure = plugin.getEconomyService().charge(player, kit.getCost(), "Crossroads kit " + kit.getKey());
             if (failure != null) {
-                Chat.send(plugin, player, "<error>" + failure);
+                String reason = isMessageKey(failure)
+                    ? plugin.getLanguageService().get(player, failure)
+                    : failure;
+                msg(player, "kits.cannot-afford", "%reason%", reason);
                 return true;
             }
         }
@@ -1230,7 +1325,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             data.setKitCooldown(profile + ":" + kit.getKey(), now + (kit.getCooldownSeconds() * 1000L));
             plugin.getPlayerDataService().save(player);
         }
-        Chat.send(plugin, player, "<success>Claimed kit <warn>" + kit.getDisplayName() + "<success>.");
+        msg(player, "kits.claimed", "%kit%", kit.getDisplayName());
         return true;
     }
 
@@ -1240,10 +1335,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
         List<String> rules = plugin.getConfig().getStringList("rules");
         if (rules.isEmpty()) {
-            Chat.send(plugin, sender, "<subtle>No rules have been configured yet.");
+            msg(sender, "common.feature-disabled");
             return true;
         }
-        Chat.send(plugin, sender, "<warn>Server Rules");
         for (String line : rules) {
             Chat.sendRaw(plugin, sender, "<muted>- <subtle>" + line);
         }
@@ -1271,7 +1365,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         if (args.length == 0) {
-            Chat.send(plugin, player, "<error>Usage: <warn>/nick <name|off>");
+            msg(player, "social.nick.usage");
             return true;
         }
         PlayerData data = plugin.getPlayerDataService().get(player);
@@ -1280,7 +1374,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             player.setDisplayName(player.getName());
             player.setCustomName(null);
             plugin.getPlayerDataService().save(player);
-            Chat.send(plugin, player, "<success>Nickname cleared.");
+            msg(player, "social.nick.cleared");
             return true;
         }
         String nickname = String.join(" ", args);
@@ -1288,19 +1382,548 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         player.setDisplayName(Chat.color(plugin, nickname));
         player.setCustomName(Chat.color(plugin, nickname));
         plugin.getPlayerDataService().save(player);
-        Chat.send(plugin, player, "<success>Nickname updated to <text>" + nickname);
+        msg(player, "social.nick.set", "%nick%", nickname);
         return true;
+    }
+
+    private boolean handleLanguage(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.language")) {
+            return true;
+        }
+
+        if (args.length == 0) {
+            msg(sender, "admin.language.current", "%language%", plugin.getLanguageService().resolveStyle(sender));
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("list")) {
+            msg(sender, "admin.language.list-header",
+                "%languages%", String.join(", ", plugin.getLanguageService().getAvailableLanguages()));
+            return true;
+        }
+
+        Player player = requirePlayer(sender);
+        if (player == null) {
+            return true;
+        }
+
+        boolean allowPlayerLanguage = plugin.getConfig().getBoolean("localization.allow_player_language", true);
+        if (args[0].equalsIgnoreCase("sync")) {
+            if (!allowPlayerLanguage) {
+                msg(player, "admin.language.disabled");
+                return true;
+            }
+            plugin.getLanguageService().clearPlayerLanguage(player);
+            msg(player, "admin.language.synced");
+            return true;
+        }
+
+        if (!allowPlayerLanguage) {
+            msg(player, "admin.language.disabled");
+            return true;
+        }
+
+        if (!plugin.getLanguageService().setPlayerLanguage(player, args[0])) {
+            msg(player, "admin.language.unknown", "%language%", args[0]);
+            return true;
+        }
+        msg(player, "admin.language.set", "%language%", plugin.getLanguageService().resolveStyle(player));
+        return true;
+    }
+
+    private boolean handleBalance(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.economy.balance")) {
+            return true;
+        }
+        if (!plugin.getEconomyService().isAvailable()) {
+            msg(sender, "economy.unavailable");
+            return true;
+        }
+
+        if (args.length == 0) {
+            Player player = requirePlayer(sender);
+            if (player == null) {
+                return true;
+            }
+            msg(player, "economy.balance.self",
+                "%balance%", plugin.getEconomyService().format(plugin.getEconomyService().getBalance(player)));
+            return true;
+        }
+
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[0]);
+        if (target == null) {
+            return true;
+        }
+        msg(sender, "economy.balance.other",
+            "%player%", target.getName() == null ? args[0] : target.getName(),
+            "%balance%", plugin.getEconomyService().format(plugin.getEconomyService().getBalance(target)));
+        return true;
+    }
+
+    private boolean handlePay(CommandSender sender, String[] args) {
+        Player player = requirePlayer(sender);
+        if (player == null || !requirePermission(player, "crossroads.economy.pay")) {
+            return true;
+        }
+        if (!plugin.getEconomyService().isAvailable()) {
+            msg(player, "economy.unavailable");
+            return true;
+        }
+        if (args.length < 2) {
+            msg(player, "economy.pay.usage");
+            return true;
+        }
+
+        OfflinePlayer target = requireKnownOfflinePlayer(player, args[0]);
+        if (target == null) {
+            return true;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
+            msg(player, "economy.pay.self");
+            return true;
+        }
+
+        double amount;
+        try {
+            amount = Double.parseDouble(args[1]);
+        } catch (NumberFormatException exception) {
+            msg(player, "economy.invalid-amount");
+            return true;
+        }
+        if (amount <= 0.0D) {
+            msg(player, "economy.invalid-amount");
+            return true;
+        }
+
+        String failure = plugin.getEconomyService().transfer(player, target, amount);
+        if (failure != null) {
+            sendFailure(player, failure);
+            return true;
+        }
+
+        String formatted = plugin.getEconomyService().format(amount);
+        msg(player, "economy.pay.sent", "%balance%", formatted, "%player%", target.getName() == null ? args[0] : target.getName());
+        if (target.isOnline() && target.getPlayer() != null) {
+            msg(target.getPlayer(), "economy.pay.received", "%balance%", formatted, "%player%", player.getName());
+        }
+        return true;
+    }
+
+    private boolean handleBalTop(CommandSender sender, String[] args) {
+        if (!(sender.hasPermission("crossroads.economy.baltop")
+            || sender.hasPermission("crossroads.economy.balance")
+            || sender.hasPermission("crossroads.admin"))) {
+            msg(sender, "common.no-permission");
+            return true;
+        }
+        if (!plugin.getEconomyService().isAvailable()) {
+            msg(sender, "economy.unavailable");
+            return true;
+        }
+
+        int limit = 10;
+        if (args.length > 0) {
+            try {
+                limit = Integer.parseInt(args[0]);
+            } catch (NumberFormatException exception) {
+                limit = 10;
+            }
+        }
+        List<EconomyService.BalanceEntry> entries = plugin.getEconomyService().topBalances(Math.max(1, Math.min(limit, 50)));
+        if (entries.isEmpty()) {
+            msg(sender, "economy.baltop.empty");
+            return true;
+        }
+        msg(sender, "economy.baltop.header");
+        int rank = 1;
+        for (EconomyService.BalanceEntry entry : entries) {
+            msgRaw(sender, "economy.baltop.line",
+                "%rank%", String.valueOf(rank++),
+                "%player%", entry.name() == null || entry.name().isBlank() ? entry.uuid().toString() : entry.name(),
+                "%balance%", plugin.getEconomyService().format(entry.balance()));
+        }
+        return true;
+    }
+
+    private boolean handleEco(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.economy.admin")) {
+            return true;
+        }
+        if (!plugin.getEconomyService().isAvailable()) {
+            msg(sender, "economy.unavailable");
+            return true;
+        }
+        if (args.length < 3) {
+            msg(sender, "economy.eco.usage");
+            return true;
+        }
+
+        String action = args[0].toLowerCase(Locale.ROOT);
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[1]);
+        if (target == null) {
+            return true;
+        }
+
+        double amount;
+        try {
+            amount = Double.parseDouble(args[2]);
+        } catch (NumberFormatException exception) {
+            msg(sender, "economy.invalid-amount");
+            return true;
+        }
+        if (amount < 0.0D || (("give".equals(action) || "take".equals(action)) && amount <= 0.0D)) {
+            msg(sender, "economy.invalid-amount");
+            return true;
+        }
+
+        String formatted = plugin.getEconomyService().format(amount);
+        String playerName = target.getName() == null ? args[1] : target.getName();
+        String failure = switch (action) {
+            case "give" -> plugin.getEconomyService().deposit(target, amount, "eco give");
+            case "take" -> {
+                if (target.isOnline() && target.getPlayer() != null) {
+                    yield plugin.getEconomyService().charge(target.getPlayer(), amount, "eco take");
+                }
+                double current = plugin.getEconomyService().getBalance(target);
+                if (current < amount) {
+                    yield "economy.insufficient-funds";
+                }
+                yield plugin.getEconomyService().setBalance(target, current - amount);
+            }
+            case "set" -> plugin.getEconomyService().setBalance(target, amount);
+            default -> {
+                msg(sender, "economy.eco.usage");
+                yield "__usage__";
+            }
+        };
+        if ("__usage__".equals(failure)) {
+            return true;
+        }
+        if (failure != null) {
+            sendFailure(sender, failure);
+            return true;
+        }
+
+        String key = switch (action) {
+            case "give" -> "economy.eco.give";
+            case "take" -> "economy.eco.take";
+            default -> "economy.eco.set";
+        };
+        msg(sender, key, "%balance%", formatted, "%player%", playerName);
+        return true;
+    }
+
+    private boolean handleCrPerms(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "crossroads.perms.admin")) {
+            return true;
+        }
+        if (!plugin.getPermissionService().isEnabled()) {
+            msg(sender, "permissions.disabled");
+            return true;
+        }
+        if (args.length == 0) {
+            msg(sender, "permissions.usage");
+            return true;
+        }
+
+        String root = args[0].toLowerCase(Locale.ROOT);
+        return switch (root) {
+            case "user" -> handleCrPermsUser(sender, args);
+            case "group" -> handleCrPermsGroup(sender, args);
+            case "list" -> {
+                String groups = plugin.getPermissionService().getGroups().keySet().stream().sorted().collect(Collectors.joining(", "));
+                msg(sender, "permissions.list.header", "%groups%", groups.isBlank() ? "-" : groups);
+                yield true;
+            }
+            case "check" -> handleCrPermsCheck(sender, args);
+            case "import" -> handleCrPermsImport(sender, args);
+            default -> {
+                msg(sender, "permissions.usage");
+                yield true;
+            }
+        };
+    }
+
+    private boolean handleCrPermsUser(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            msg(sender, "permissions.user.usage");
+            return true;
+        }
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[1]);
+        if (target == null) {
+            return true;
+        }
+        PlayerData data = plugin.getPlayerDataService().get(target.getUniqueId());
+        plugin.getPermissionService().ensurePlayerDefaults(data);
+        String action = args[2].toLowerCase(Locale.ROOT);
+        String playerName = target.getName() == null ? args[1] : target.getName();
+
+        if (action.equals("info")) {
+            msg(sender, "permissions.user.info",
+                "%player%", playerName,
+                "%primary%", data.getPrimaryGroup().isBlank() ? plugin.getPermissionService().getDefaultGroup() : data.getPrimaryGroup(),
+                "%groups%", String.join(", ", data.getPermissionGroups()));
+            return true;
+        }
+
+        if (action.equals("permission")) {
+            if (args.length < 5) {
+                msg(sender, "permissions.user.usage");
+                return true;
+            }
+            String op = args[3].toLowerCase(Locale.ROOT);
+            String permission = args[4];
+            if (op.equals("set")) {
+                boolean value = args.length < 6 || Boolean.parseBoolean(args[5]);
+                data.setPermissionNode(PermissionNode.permanent(permission, value));
+                plugin.getPlayerDataService().save(target.getUniqueId());
+                refreshPermissions(target);
+                msg(sender, "permissions.user.permission-set",
+                    "%permission%", permission, "%player%", playerName, "%value%", String.valueOf(value));
+                return true;
+            }
+            if (op.equals("unset")) {
+                data.unsetPermissionNode(permission, "", "");
+                plugin.getPlayerDataService().save(target.getUniqueId());
+                refreshPermissions(target);
+                msg(sender, "permissions.user.permission-unset", "%permission%", permission, "%player%", playerName);
+                return true;
+            }
+            msg(sender, "permissions.user.usage");
+            return true;
+        }
+
+        if (action.equals("parent")) {
+            if (args.length < 5) {
+                msg(sender, "permissions.user.usage");
+                return true;
+            }
+            String op = args[3].toLowerCase(Locale.ROOT);
+            String group = args[4];
+            plugin.getPermissionService().createGroup(group);
+            if (op.equals("add")) {
+                data.addPermissionGroup(group);
+                plugin.getPlayerDataService().save(target.getUniqueId());
+                refreshPermissions(target);
+                msg(sender, "permissions.user.parent-add", "%group%", group.toLowerCase(Locale.ROOT), "%player%", playerName);
+                return true;
+            }
+            if (op.equals("remove")) {
+                data.removePermissionGroup(group);
+                plugin.getPlayerDataService().save(target.getUniqueId());
+                refreshPermissions(target);
+                msg(sender, "permissions.user.parent-remove", "%group%", group.toLowerCase(Locale.ROOT), "%player%", playerName);
+                return true;
+            }
+            msg(sender, "permissions.user.usage");
+            return true;
+        }
+
+        if (action.equals("group")) {
+            if (args.length < 4) {
+                msg(sender, "permissions.user.usage");
+                return true;
+            }
+            String group = args[3];
+            plugin.getPermissionService().createGroup(group);
+            data.setPrimaryGroup(group);
+            data.addPermissionGroup(group);
+            plugin.getPlayerDataService().save(target.getUniqueId());
+            refreshPermissions(target);
+            msg(sender, "permissions.user.group-set", "%player%", playerName, "%group%", group.toLowerCase(Locale.ROOT));
+            return true;
+        }
+
+        msg(sender, "permissions.user.usage");
+        return true;
+    }
+
+    private boolean handleCrPermsGroup(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            msg(sender, "permissions.group.usage");
+            return true;
+        }
+        String groupName = args[1].toLowerCase(Locale.ROOT);
+        String action = args[2].toLowerCase(Locale.ROOT);
+
+        if (action.equals("create")) {
+            if (plugin.getPermissionService().getGroup(groupName) != null) {
+                msg(sender, "permissions.group.exists", "%group%", groupName);
+                return true;
+            }
+            plugin.getPermissionService().createGroup(groupName);
+            msg(sender, "permissions.group.created", "%group%", groupName);
+            return true;
+        }
+
+        if (action.equals("delete")) {
+            if (!plugin.getPermissionService().deleteGroup(groupName)) {
+                msg(sender, "permissions.group.missing", "%group%", groupName);
+                return true;
+            }
+            msg(sender, "permissions.group.deleted", "%group%", groupName);
+            return true;
+        }
+
+        PermissionGroup group = plugin.getPermissionService().getGroup(groupName);
+        if (group == null && !action.equals("create")) {
+            msg(sender, "permissions.group.missing", "%group%", groupName);
+            return true;
+        }
+
+        if (action.equals("info")) {
+            msg(sender, "permissions.group.info",
+                "%group%", group.getName(),
+                "%weight%", String.valueOf(group.getWeight()),
+                "%parents%", String.join(", ", group.getParents()));
+            return true;
+        }
+
+        if (action.equals("permission")) {
+            if (args.length < 5) {
+                msg(sender, "permissions.group.usage");
+                return true;
+            }
+            String op = args[3].toLowerCase(Locale.ROOT);
+            String permission = args[4];
+            if (op.equals("set")) {
+                boolean value = args.length < 6 || Boolean.parseBoolean(args[5]);
+                group.setNode(PermissionNode.permanent(permission, value));
+                plugin.getPermissionService().saveGroups();
+                plugin.getPermissionService().refreshOnlinePlayers();
+                msg(sender, "permissions.group.permission-set",
+                    "%permission%", permission, "%group%", groupName, "%value%", String.valueOf(value));
+                return true;
+            }
+            if (op.equals("unset")) {
+                group.unsetNode(permission, "", "");
+                plugin.getPermissionService().saveGroups();
+                plugin.getPermissionService().refreshOnlinePlayers();
+                msg(sender, "permissions.group.permission-unset", "%permission%", permission, "%group%", groupName);
+                return true;
+            }
+            msg(sender, "permissions.group.usage");
+            return true;
+        }
+
+        if (action.equals("parent")) {
+            if (args.length < 5) {
+                msg(sender, "permissions.group.usage");
+                return true;
+            }
+            String op = args[3].toLowerCase(Locale.ROOT);
+            String parent = args[4];
+            if (op.equals("add")) {
+                group.addParent(parent);
+                plugin.getPermissionService().saveGroups();
+                plugin.getPermissionService().refreshOnlinePlayers();
+                msg(sender, "permissions.group.parent-add", "%parent%", parent.toLowerCase(Locale.ROOT), "%group%", groupName);
+                return true;
+            }
+            if (op.equals("remove")) {
+                group.removeParent(parent);
+                plugin.getPermissionService().saveGroups();
+                plugin.getPermissionService().refreshOnlinePlayers();
+                msg(sender, "permissions.group.parent-remove", "%parent%", parent.toLowerCase(Locale.ROOT), "%group%", groupName);
+                return true;
+            }
+            msg(sender, "permissions.group.usage");
+            return true;
+        }
+
+        if (action.equals("meta")) {
+            if (args.length < 5) {
+                msg(sender, "permissions.group.usage");
+                return true;
+            }
+            String field = args[3].toLowerCase(Locale.ROOT);
+            String value = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+            switch (field) {
+                case "prefix" -> group.setPrefix(value);
+                case "suffix" -> group.setSuffix(value);
+                case "weight" -> {
+                    try {
+                        group.setWeight(Integer.parseInt(value));
+                    } catch (NumberFormatException exception) {
+                        msg(sender, "permissions.group.usage");
+                        return true;
+                    }
+                }
+                default -> {
+                    msg(sender, "permissions.group.usage");
+                    return true;
+                }
+            }
+            plugin.getPermissionService().saveGroups();
+            plugin.getPermissionService().refreshOnlinePlayers();
+            msg(sender, "permissions.group.meta", "%group%", groupName, "%field%", field, "%value%", value);
+            return true;
+        }
+
+        msg(sender, "permissions.group.usage");
+        return true;
+    }
+
+    private boolean handleCrPermsCheck(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            msg(sender, "permissions.usage");
+            return true;
+        }
+        OfflinePlayer target = requireKnownOfflinePlayer(sender, args[1]);
+        if (target == null) {
+            return true;
+        }
+        PlayerData data = plugin.getPlayerDataService().get(target.getUniqueId());
+        String world = target.isOnline() && target.getPlayer() != null
+            ? target.getPlayer().getWorld().getName()
+            : "";
+        boolean value = plugin.getPermissionService().hasPermission(data, args[2], world);
+        if (target.isOnline() && target.getPlayer() != null) {
+            value = target.getPlayer().hasPermission(args[2]);
+        }
+        msg(sender, "permissions.check.result",
+            "%player%", target.getName() == null ? args[1] : target.getName(),
+            "%permission%", args[2],
+            "%value%", String.valueOf(value));
+        return true;
+    }
+
+    private boolean handleCrPermsImport(CommandSender sender, String[] args) {
+        if (args.length < 2 || !args[1].equalsIgnoreCase("luckperms")) {
+            msg(sender, "permissions.usage");
+            return true;
+        }
+        int imported = plugin.getPermissionService().importLuckPermsYaml();
+        if (imported <= 0) {
+            msg(sender, "permissions.import.none");
+            return true;
+        }
+        msg(sender, "permissions.import.done", "%count%", String.valueOf(imported));
+        return true;
+    }
+
+    private void refreshPermissions(OfflinePlayer target) {
+        if (target.isOnline() && target.getPlayer() != null) {
+            plugin.getPermissionService().applyAttachments(target.getPlayer());
+        }
     }
 
     private boolean handleCrossroads(CommandSender sender, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("about")) {
-            Chat.send(plugin, sender, "<accent>Crossroads <subtle>v<text>" + plugin.getDescription().getVersion()
-                + " <muted>| <text>Storage: <warn>" + plugin.getStorageManager().getProvider().getType()
-                + " <muted>| <text>Economy: <warn>" + plugin.getEconomyService().getProviderName()
-                + " <muted>| <text>AegisGuard: <warn>" + (plugin.getAegisGuardHookService().isAvailable() ? plugin.getAegisGuardHookService().getVersion() : "off")
-                + " <muted>| <text>Protections: <warn>" + plugin.getProtectionCompatibilityService().getActiveProviderSummary()
-                + " <muted>| <text>Modules: <warn>" + plugin.getModuleManager().getModules().size());
+            msg(sender, "admin.about",
+                "%version%", plugin.getDescription().getVersion(),
+                "%storage%", String.valueOf(plugin.getStorageManager().getProvider().getType()),
+                "%economy%", plugin.getEconomyService().getProviderName(),
+                "%language%", plugin.getLanguageService().resolveStyle(sender));
             return true;
+        }
+
+        if (args[0].equalsIgnoreCase("language")) {
+            return handleLanguage(sender, Arrays.copyOfRange(args, 1, args.length));
+        }
+
+        if (args[0].equalsIgnoreCase("perms")) {
+            return handleCrPerms(sender, Arrays.copyOfRange(args, 1, args.length));
         }
 
         if (!requirePermission(sender, "crossroads.admin")) {
@@ -1309,7 +1932,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         if (args[0].equalsIgnoreCase("reload")) {
             plugin.reloadCrossroads();
-            Chat.send(plugin, sender, "<success>Crossroads has been reloaded.");
+            msg(sender, "admin.reloaded");
             return true;
         }
 
@@ -1317,11 +1940,17 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             if (!requireFeature(sender, "modules")) {
                 return true;
             }
-            String modules = plugin.getModuleManager().getModules().stream()
-                .map(module -> module.getId())
-                .sorted()
-                .collect(Collectors.joining(", "));
-            Chat.send(plugin, sender, modules.isBlank() ? "<subtle>No external modules are currently loaded." : "<warn>Modules<subtle>: <text>" + modules);
+            var modules = plugin.getModuleManager().getModules();
+            if (modules.isEmpty()) {
+                msg(sender, "admin.modules.none");
+                return true;
+            }
+            msg(sender, "admin.modules.header");
+            modules.stream()
+                .sorted(Comparator.comparing(module -> module.getId()))
+                .forEach(module -> msgRaw(sender, "admin.modules.line",
+                    "%name%", module.getId(),
+                    "%version%", plugin.getDescription().getVersion()));
             return true;
         }
 
@@ -1330,14 +1959,14 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 return true;
             }
             if (args.length < 2 || !args[1].equalsIgnoreCase("create")) {
-                Chat.send(plugin, sender, "<error>Usage: <warn>/crossroads backup create");
+                msg(sender, "admin.backup.usage");
                 return true;
             }
             try {
                 java.io.File backup = plugin.getBackupService().createBackup("manual");
-                Chat.send(plugin, sender, "<success>Backup created: <text>" + backup.getName());
+                msg(sender, "admin.backup.created", "%file%", backup.getName());
             } catch (Exception exception) {
-                Chat.send(plugin, sender, "<error>Backup failed. Check console for details.");
+                msg(sender, "admin.backup.failed", "%reason%", exception.getMessage() == null ? "unknown" : exception.getMessage());
                 plugin.getLogger().warning("Manual backup failed: " + exception.getMessage());
             }
             return true;
@@ -1345,32 +1974,32 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
         if (args[0].equalsIgnoreCase("import")) {
             if (args.length < 2 || !args[1].equalsIgnoreCase("essentials")) {
-                Chat.send(plugin, sender, "<error>Usage: <warn>/crossroads import essentials");
+                msg(sender, "admin.import.usage");
                 return true;
             }
             var result = plugin.getImportService().importEssentials();
             if (!result.found()) {
-                Chat.send(plugin, sender, "<error>No Essentials folder was found to import.");
+                msg(sender, "admin.import.failed", "%reason%", "No Essentials folder was found to import.");
                 return true;
             }
-            Chat.send(plugin, sender, "<success>Imported <warn>" + result.homes() + "<success> homes, <warn>" + result.warps()
-                + "<success> warps, and <warn>" + result.nicknames() + "<success> nicknames from Essentials.");
+            String summary = result.homes() + " homes, " + result.warps() + " warps, " + result.nicknames() + " nicknames";
+            msg(sender, "admin.import.done", "%summary%", summary);
             return true;
         }
 
-        Chat.send(plugin, sender, "<error>Unknown subcommand. Try <warn>/crossroads about<error>, <warn>/crossroads reload<error>, <warn>/crossroads modules<error>, <warn>/crossroads backup create<error>, or <warn>/crossroads import essentials<error>.");
+        msg(sender, "admin.usage");
         return true;
     }
 
-    private boolean teleport(Player player, Location destination, String successMessage) {
+    private boolean teleport(Player player, Location destination, String successKey, String... replacements) {
         String protectionFailure = plugin.getProtectionCompatibilityService().checkTeleportAccess(player, destination);
         if (protectionFailure != null) {
-            Chat.send(plugin, player, "<error>" + protectionFailure);
+            sendFailure(player, protectionFailure);
             return false;
         }
         plugin.getBackService().record(player, player.getLocation());
         player.teleport(destination);
-        Chat.send(plugin, player, successMessage);
+        msg(player, successKey, replacements);
         return true;
     }
 
@@ -1378,7 +2007,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (sender instanceof Player player) {
             return player;
         }
-        Chat.send(plugin, sender, "<error>This command can only be used in-game.");
+        msg(sender, "common.players-only");
         return null;
     }
 
@@ -1386,7 +2015,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (sender.hasPermission(permission) || sender.hasPermission("crossroads.admin")) {
             return true;
         }
-        Chat.send(plugin, sender, "<error>You do not have permission for that.");
+        msg(sender, "common.no-permission");
         return false;
     }
 
@@ -1394,7 +2023,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (plugin.isFeatureEnabled(featureKey)) {
             return true;
         }
-        Chat.send(plugin, sender, "<error>That feature is disabled in the Crossroads config.");
+        msg(sender, "common.feature-disabled");
         return false;
     }
 
@@ -1411,7 +2040,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
         long remaining = Math.max(1L, (nextUse - System.currentTimeMillis()) / 1000L);
-        Chat.send(plugin, player, "<error>That command is on cooldown for another <warn>" + TimeFormatter.duration(remaining) + "<error>.");
+        msg(player, "common.cooldown", "%duration%", TimeFormatter.duration(remaining));
         return false;
     }
 
@@ -1479,7 +2108,7 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         if (target != null) {
             return target;
         }
-        Chat.send(plugin, sender, "<error>No known player named <warn>" + input + "<error> was found.");
+        msg(sender, "common.player-not-found", "%player%", input);
         return null;
     }
 
@@ -1522,6 +2151,9 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             case "freeze", "unfreeze", "mute", "unmute", "warn", "stafflog", "history", "kick", "tempban", "unban", "jail", "unjail", "setjail", "shadowmute", "staffnote" -> "moderation";
             case "kit" -> "kits";
             case "motd", "help", "info", "rules" -> "text-pages";
+            case "language" -> null;
+            case "balance", "pay", "baltop", "eco" -> "economy";
+            case "crperms", "cperm" -> "permissions";
             default -> null;
         };
     }
@@ -1557,6 +2189,36 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return new ScopedName(currentProfile(player), normalized);
         }
         return new ScopedName(normalized.substring(0, separator), normalized.substring(separator + 1));
+    }
+
+    private String formatDurationLabel(long seconds) {
+        if (seconds == Long.MAX_VALUE) {
+            return "permanent";
+        }
+        return TimeFormatter.duration(seconds);
+    }
+
+    private boolean isMessageKey(String value) {
+        return value != null && !value.isBlank() && !value.contains(" ") && (value.contains(".") || value.startsWith("economy."));
+    }
+
+    private void sendFailure(CommandSender sender, String failure) {
+        if (failure == null) {
+            return;
+        }
+        if (isMessageKey(failure)) {
+            msg(sender, failure);
+            return;
+        }
+        Chat.send(plugin, sender, "<error>" + failure);
+    }
+
+    private void msg(CommandSender sender, String key, String... replacements) {
+        plugin.getLanguageService().send(sender, key, replacements);
+    }
+
+    private void msgRaw(CommandSender sender, String key, String... replacements) {
+        plugin.getLanguageService().sendRaw(sender, key, replacements);
     }
 
     private record ScopedName(String scope, String name) {
