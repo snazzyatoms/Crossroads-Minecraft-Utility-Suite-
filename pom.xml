@@ -9,7 +9,7 @@
     <packaging>jar</packaging>
 
     <name>Crossroads</name>
-    <description>Release-ready Minecraft utility suite for Paper and Spigot servers.</description>
+    <description>Self-reliant Minecraft utility suite with multi-language packs, native permissions, native economy, and soft integrations for Paper and Spigot.</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>

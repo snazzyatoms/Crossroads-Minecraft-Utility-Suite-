@@ -3,7 +3,7 @@ version: ${project.version}
 main: dev.crossroadsmc.crossroads.CrossroadsPlugin
 api-version: "1.16"
 author: Kai
-description: Release-ready Minecraft utility suite with teleport requests, moderation, storage backends, and rich server-core tools.
+description: Self-reliant Minecraft utility suite with multi-language packs, native permissions, native economy, teleports, moderation, and soft integrations.
 softdepend: [Vault, PlaceholderAPI, Coffers, AegisGuard, WorldGuard, GriefPrevention, Lands, Residence, Towny, PlotSquared]
 
 commands:
