@@ -4,7 +4,7 @@
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-Utility%20Suite-00C853?style=for-the-badge&logo=minecraft&logoColor=white)](https://minecraft.net)
 [![Paper / Spigot](https://img.shields.io/badge/Paper%20%2F%20Spigot-1.16.5%2B-2196F3?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io)
-[![Version](https://img.shields.io/badge/Version-1.0.0-F57C00?style=for-the-badge)](./pom.xml)
+[![Version](https://img.shields.io/badge/Version-1.0.1-F57C00?style=for-the-badge)](./pom.xml)
 [![Languages](https://img.shields.io/badge/Languages-8%20Packs-7B1FA2?style=for-the-badge)](#localization)
 [![Permissions](https://img.shields.io/badge/Permissions-Native-00897B?style=for-the-badge)](#native-permissions)
 [![Economy](https://img.shields.io/badge/Economy-Native%20%2B%20Coffers-5D4037?style=for-the-badge)](#native-economy)
@@ -13,7 +13,7 @@
 
 # Crossroads Minecraft Utility Suite
 
-**Version 1.0.0** — a self-reliant server-core suite for Paper and Spigot.
+**Version 1.0.1** — a self-reliant server-core suite for Paper and Spigot.
 
 Homes, warps, teleports, kits, messaging, staff tools, moderation, **native permissions**, **native economy**, and **multi-language packs** in one plugin. Servers can run Crossroads as their core stack without LuckPerms, Essentials, or Vault.
 
@@ -36,6 +36,10 @@ Most servers stitch together Essentials-style utilities, a permissions plugin, a
 Soft partners stay optional: AegisGuard, Coffers, Vault bridges, Essentials import, PlaceholderAPI, and major protection plugins. None are hard requirements.
 
 ---
+
+## What's new in 1.0.1
+
+- Enable safely without Vault installed (Vault remains an optional soft bridge only)
 
 ## What's new in 1.0.0
 
@@ -163,7 +167,7 @@ economy:
 
 ## Quick start
 
-1. Build or download `crossroads-1.0.0.jar`
+1. Build or download `crossroads-1.0.1.jar`
 2. Drop it into `plugins/`
 3. Start the server once to generate config, language packs, and defaults
 4. Set `localization.default_language` (and keep `sync_aegisguard: true` if you run AegisGuard)
@@ -280,7 +284,7 @@ mvn clean package
 Build output is kept outside the repository root:
 
 - intermediate Maven files: `../Crossroads Build/crossroads`
-- release jars and checksums: `../Crossroads Release Jars/crossroads-1.0.0`
+- release jars and checksums: `../Crossroads Release Jars/crossroads-1.0.1`
 
 ---
 
