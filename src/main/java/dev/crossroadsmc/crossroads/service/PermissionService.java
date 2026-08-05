@@ -19,13 +19,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachment;
-import org.bukkit.plugin.ServicePriority;
 
 public final class PermissionService {
     private final CrossroadsPlugin plugin;
@@ -35,7 +33,8 @@ public final class PermissionService {
     private String serverName = "global";
     private boolean worldContexts = true;
     private boolean vaultBridge;
-    private Permission vaultProvider;
+    /** Vault Permission provider instance; typed as Object so this class loads without Vault. */
+    private Object vaultProvider;
 
     public PermissionService(CrossroadsPlugin plugin) {
         this.plugin = plugin;
@@ -58,8 +57,16 @@ public final class PermissionService {
         return plugin.isFeatureEnabled("permissions") && plugin.getConfig().getBoolean("permissions.enabled", true);
     }
 
+    public CrossroadsPlugin getPlugin() {
+        return plugin;
+    }
+
     public String getDefaultGroup() {
         return defaultGroup;
+    }
+
+    public String getServerName() {
+        return serverName;
     }
 
     public Map<String, PermissionGroup> getGroups() {
@@ -403,193 +410,36 @@ public final class PermissionService {
             return;
         }
         if (Bukkit.getPluginManager().getPlugin("Vault") == null) {
+            plugin.getLogger().info("permissions.vault-bridge is enabled, but Vault is not installed. Skipping permission bridge.");
             return;
         }
         try {
-            vaultProvider = new CrossroadsVaultPermission();
-            Bukkit.getServicesManager().register(Permission.class, vaultProvider, plugin, ServicePriority.High);
+            // Resolve Vault + bridge classes only after confirming Vault is present.
+            Class.forName("net.milkbowl.vault.permission.Permission");
+            Class<?> bridgeClass = Class.forName("dev.crossroadsmc.crossroads.integration.vault.VaultPermissionBridge");
+            vaultProvider = bridgeClass
+                .getMethod("register", PermissionService.class, CrossroadsPlugin.class)
+                .invoke(null, this, plugin);
             plugin.getLogger().info("Registered Crossroads as a Vault Permission provider.");
-        } catch (Throwable exception) {
+        } catch (ClassNotFoundException | NoClassDefFoundError exception) {
+            plugin.getLogger().warning("Vault API is unavailable; permission bridge was not registered.");
+            vaultProvider = null;
+        } catch (ReflectiveOperationException exception) {
             plugin.getLogger().log(Level.WARNING, "Unable to register Vault permission bridge.", exception);
             vaultProvider = null;
         }
     }
 
     private void unregisterVaultBridge() {
-        if (vaultProvider != null) {
-            try {
-                Bukkit.getServicesManager().unregister(Permission.class, vaultProvider);
-            } catch (Exception ignored) {
-                // Best effort.
-            }
-            vaultProvider = null;
+        if (vaultProvider == null) {
+            return;
         }
-    }
-
-    private final class CrossroadsVaultPermission extends Permission {
-        @Override
-        public String getName() {
-            return "Crossroads";
+        try {
+            Class<?> bridgeClass = Class.forName("dev.crossroadsmc.crossroads.integration.vault.VaultPermissionBridge");
+            bridgeClass.getMethod("unregister", Object.class).invoke(null, vaultProvider);
+        } catch (NoClassDefFoundError | ReflectiveOperationException ignored) {
+            // Best effort when Vault is already gone.
         }
-
-        @Override
-        public boolean isEnabled() {
-            return PermissionService.this.isEnabled();
-        }
-
-        @Override
-        public boolean hasSuperPermsCompat() {
-            return true;
-        }
-
-        @Override
-        public boolean playerHas(String world, String player, String permission) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online != null) {
-                return online.hasPermission(permission);
-            }
-            return false;
-        }
-
-        @Override
-        public boolean playerAdd(String world, String player, String permission) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return false;
-            }
-            PlayerData data = PermissionService.this.plugin.getPlayerDataService().get(online);
-            data.setPermissionNode(new PermissionNode(permission, true, 0L, world == null ? "" : world, serverName));
-            PermissionService.this.plugin.getPlayerDataService().save(online);
-            applyAttachments(online);
-            return true;
-        }
-
-        @Override
-        public boolean playerRemove(String world, String player, String permission) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return false;
-            }
-            PlayerData data = PermissionService.this.plugin.getPlayerDataService().get(online);
-            boolean removed = data.unsetPermissionNode(permission, world == null ? "" : world, serverName);
-            if (removed) {
-                PermissionService.this.plugin.getPlayerDataService().save(online);
-                applyAttachments(online);
-            }
-            return removed;
-        }
-
-        @Override
-        public boolean groupHas(String world, String group, String permission) {
-            PermissionGroup permissionGroup = getGroup(group);
-            if (permissionGroup == null) {
-                return false;
-            }
-            for (PermissionNode node : permissionGroup.getNodes()) {
-                if (node.getPermission().equalsIgnoreCase(permission)
-                    && node.matchesContext(world == null ? "" : world, serverName)
-                    && !node.isExpired()) {
-                    return node.getValue();
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public boolean groupAdd(String world, String group, String permission) {
-            PermissionGroup permissionGroup = createGroup(group);
-            permissionGroup.setNode(new PermissionNode(permission, true, 0L, world == null ? "" : world, serverName));
-            saveGroups();
-            refreshOnlinePlayers();
-            return true;
-        }
-
-        @Override
-        public boolean groupRemove(String world, String group, String permission) {
-            PermissionGroup permissionGroup = getGroup(group);
-            if (permissionGroup == null) {
-                return false;
-            }
-            boolean removed = permissionGroup.unsetNode(permission, world == null ? "" : world, serverName);
-            if (removed) {
-                saveGroups();
-                refreshOnlinePlayers();
-            }
-            return removed;
-        }
-
-        @Override
-        public boolean playerInGroup(String world, String player, String group) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return false;
-            }
-            return PermissionService.this.plugin.getPlayerDataService().get(online).getPermissionGroups().contains(group.toLowerCase(Locale.ROOT));
-        }
-
-        @Override
-        public boolean playerAddGroup(String world, String player, String group) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return false;
-            }
-            createGroup(group);
-            PlayerData data = PermissionService.this.plugin.getPlayerDataService().get(online);
-            boolean added = data.addPermissionGroup(group);
-            if (data.getPrimaryGroup().isBlank()) {
-                data.setPrimaryGroup(group);
-            }
-            PermissionService.this.plugin.getPlayerDataService().save(online);
-            applyAttachments(online);
-            return added;
-        }
-
-        @Override
-        public boolean playerRemoveGroup(String world, String player, String group) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return false;
-            }
-            PlayerData data = PermissionService.this.plugin.getPlayerDataService().get(online);
-            boolean removed = data.removePermissionGroup(group);
-            if (removed) {
-                if (data.getPrimaryGroup().equalsIgnoreCase(group)) {
-                    data.setPrimaryGroup(defaultGroup);
-                    data.addPermissionGroup(defaultGroup);
-                }
-                PermissionService.this.plugin.getPlayerDataService().save(online);
-                applyAttachments(online);
-            }
-            return removed;
-        }
-
-        @Override
-        public String[] getPlayerGroups(String world, String player) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return new String[0];
-            }
-            return PermissionService.this.plugin.getPlayerDataService().get(online).getPermissionGroups().toArray(String[]::new);
-        }
-
-        @Override
-        public String getPrimaryGroup(String world, String player) {
-            Player online = Bukkit.getPlayerExact(player);
-            if (online == null) {
-                return defaultGroup;
-            }
-            String primary = PermissionService.this.plugin.getPlayerDataService().get(online).getPrimaryGroup();
-            return primary.isBlank() ? defaultGroup : primary;
-        }
-
-        @Override
-        public String[] getGroups() {
-            return groups.keySet().toArray(String[]::new);
-        }
-
-        @Override
-        public boolean hasGroupSupport() {
-            return true;
-        }
+        vaultProvider = null;
     }
 }
