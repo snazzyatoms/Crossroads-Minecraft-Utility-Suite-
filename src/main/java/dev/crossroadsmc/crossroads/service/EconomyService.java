@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -134,11 +133,16 @@ public final class EconomyService {
     }
 
     private Optional<EconomyAdapter> detectVault() {
-        RegisteredServiceProvider<Economy> registration = plugin.getServer().getServicesManager().getRegistration(Economy.class);
-        if (registration == null || registration.getProvider() == null) {
+        try {
+            Class<?> economyClass = Class.forName("net.milkbowl.vault.economy.Economy");
+            RegisteredServiceProvider<?> registration = plugin.getServer().getServicesManager().getRegistration(economyClass);
+            if (registration == null || registration.getProvider() == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new VaultEconomyAdapter(registration.getProvider()));
+        } catch (ClassNotFoundException | NoClassDefFoundError | IllegalStateException exception) {
             return Optional.empty();
         }
-        return Optional.of(new VaultEconomyAdapter(registration.getProvider()));
     }
 
     public record BalanceEntry(UUID uuid, String name, double balance) {
@@ -378,11 +382,33 @@ public final class EconomyService {
         }
     }
 
+    /**
+     * Reflective Vault economy adapter so EconomyService itself has no hard Vault type refs.
+     */
     private static final class VaultEconomyAdapter implements EconomyAdapter {
-        private final Economy economy;
+        private final Object economy;
+        private final Method nameMethod;
+        private final Method balanceMethod;
+        private final Method formatMethod;
+        private final Method hasMethod;
+        private final Method withdrawMethod;
+        private final Method depositMethod;
+        private final Method successMethod;
 
-        private VaultEconomyAdapter(Economy economy) {
+        private VaultEconomyAdapter(Object economy) {
             this.economy = economy;
+            try {
+                Class<?> api = Class.forName("net.milkbowl.vault.economy.Economy");
+                this.nameMethod = api.getMethod("getName");
+                this.balanceMethod = api.getMethod("getBalance", OfflinePlayer.class);
+                this.formatMethod = api.getMethod("format", double.class);
+                this.hasMethod = api.getMethod("has", OfflinePlayer.class, double.class);
+                this.withdrawMethod = api.getMethod("withdrawPlayer", OfflinePlayer.class, double.class);
+                this.depositMethod = api.getMethod("depositPlayer", OfflinePlayer.class, double.class);
+                this.successMethod = withdrawMethod.getReturnType().getMethod("transactionSuccess");
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Unable to bind Vault economy API.", exception);
+            }
         }
 
         @Override
@@ -392,46 +418,73 @@ public final class EconomyService {
 
         @Override
         public String getProviderName() {
-            return economy.getName();
+            try {
+                return String.valueOf(nameMethod.invoke(economy));
+            } catch (ReflectiveOperationException exception) {
+                return "Vault";
+            }
         }
 
         @Override
         public double getBalance(OfflinePlayer player) {
-            return economy.getBalance(player);
+            try {
+                Object result = balanceMethod.invoke(economy, player);
+                return result instanceof Number number ? number.doubleValue() : 0.0D;
+            } catch (ReflectiveOperationException exception) {
+                return 0.0D;
+            }
         }
 
         @Override
         public String format(double amount) {
-            return economy.format(amount);
+            try {
+                return String.valueOf(formatMethod.invoke(economy, amount));
+            } catch (ReflectiveOperationException exception) {
+                return new DecimalFormat("0.00").format(amount);
+            }
         }
 
         @Override
         public boolean has(OfflinePlayer player, double amount) {
-            return economy.has(player, amount);
+            try {
+                return Boolean.TRUE.equals(hasMethod.invoke(economy, player, amount));
+            } catch (ReflectiveOperationException exception) {
+                return false;
+            }
         }
 
         @Override
         public String withdraw(OfflinePlayer player, double amount, String reason) {
-            if (!economy.has(player, amount)) {
+            if (!has(player, amount)) {
                 return "economy.insufficient-funds";
             }
-            if (!economy.withdrawPlayer(player, amount).transactionSuccess()) {
+            try {
+                Object response = withdrawMethod.invoke(economy, player, amount);
+                if (!Boolean.TRUE.equals(successMethod.invoke(response))) {
+                    return "economy.transaction-rejected";
+                }
+                return null;
+            } catch (ReflectiveOperationException exception) {
                 return "economy.transaction-rejected";
             }
-            return null;
         }
 
         @Override
         public String deposit(OfflinePlayer player, double amount, String reason) {
-            if (!economy.depositPlayer(player, amount).transactionSuccess()) {
+            try {
+                Object response = depositMethod.invoke(economy, player, amount);
+                if (!Boolean.TRUE.equals(successMethod.invoke(response))) {
+                    return "economy.transaction-rejected";
+                }
+                return null;
+            } catch (ReflectiveOperationException exception) {
                 return "economy.transaction-rejected";
             }
-            return null;
         }
 
         @Override
         public String setBalance(OfflinePlayer player, double amount) {
-            double current = economy.getBalance(player);
+            double current = getBalance(player);
             if (amount > current) {
                 return deposit(player, amount - current, "set");
             }

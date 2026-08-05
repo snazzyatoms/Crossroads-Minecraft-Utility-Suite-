@@ -378,6 +378,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
     private void logStartupDiagnostics() {
         boolean placeholderApiPresent = getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
         boolean coffersPresent = getServer().getPluginManager().getPlugin("Coffers") != null;
+        boolean vaultPresent = getServer().getPluginManager().getPlugin("Vault") != null;
         boolean aegisPresent = aegisGuardHookService != null && aegisGuardHookService.isAvailable();
         String aegisVersion = aegisPresent ? aegisGuardHookService.getVersion() : "off";
         String economyMode = getConfig().getString("economy.mode", "money");
@@ -390,6 +391,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
             + ", AegisGuard=" + aegisVersion
             + ", protections=" + protections
             + ", PlaceholderAPI=" + placeholderApiPresent
+            + ", Vault=" + vaultPresent
             + ", modules=" + moduleManager.getModules().size());
 
         if ("aegis_claim_blocks".equalsIgnoreCase(economyMode) && !aegisPresent) {
