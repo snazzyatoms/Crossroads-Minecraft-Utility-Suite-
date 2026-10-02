@@ -3,7 +3,7 @@ package dev.crossroadsmc.crossroads.service;
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.InventorySnapshot;
 import dev.crossroadsmc.crossroads.model.StaffModeSession;
-import java.util.HashMap;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -20,7 +20,7 @@ public final class StaffService {
     private final Set<UUID> vanishedPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> flyingPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> socialSpyPlayers = ConcurrentHashMap.newKeySet();
-    private final Map<UUID, StaffModeSession> staffModeSessions = new HashMap<>();
+    private final Map<UUID, StaffModeSession> staffModeSessions = new ConcurrentHashMap<>();
 
     public StaffService(CrossroadsPlugin plugin) {
         this.plugin = plugin;
@@ -46,16 +46,21 @@ public final class StaffService {
         if (isVanished(player)) {
             vanishedPlayers.remove(player.getUniqueId());
             for (Player other : plugin.getServer().getOnlinePlayers()) {
-                other.showPlayer(plugin, player);
+                SchedulerCompat.runOnEntity(plugin, other, () -> other.showPlayer(plugin, player));
             }
             return false;
         }
 
         vanishedPlayers.add(player.getUniqueId());
         for (Player other : plugin.getServer().getOnlinePlayers()) {
-            if (!other.equals(player) && !other.hasPermission("crossroads.staff.see")) {
-                other.hidePlayer(plugin, player);
+            if (other.equals(player)) {
+                continue;
             }
+            SchedulerCompat.runOnEntity(plugin, other, () -> {
+                if (!other.hasPermission("crossroads.staff.see")) {
+                    other.hidePlayer(plugin, player);
+                }
+            });
         }
         return true;
     }
@@ -154,7 +159,7 @@ public final class StaffService {
         player.setLevel(snapshot.getLevel());
 
         if (snapshot.getLocation() != null && snapshot.getLocation().getWorld() != null) {
-            player.teleport(snapshot.getLocation());
+            SchedulerCompat.teleportAsync(plugin, player, snapshot.getLocation());
         }
 
         if (!session.wasVanishedBefore() && isVanished(player)) {
@@ -187,11 +192,13 @@ public final class StaffService {
 
     public void shutdown() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (isInStaffMode(player)) {
-                disableStaffMode(player);
-            } else if (isVanished(player)) {
-                toggleVanish(player);
-            }
+            SchedulerCompat.runOnEntity(plugin, player, () -> {
+                if (isInStaffMode(player)) {
+                    disableStaffMode(player);
+                } else if (isVanished(player)) {
+                    toggleVanish(player);
+                }
+            });
         }
         vanishedPlayers.clear();
         flyingPlayers.clear();

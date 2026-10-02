@@ -4,6 +4,7 @@ import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.PermissionGroup;
 import dev.crossroadsmc.crossroads.model.PermissionNode;
 import dev.crossroadsmc.crossroads.model.PlayerData;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -166,7 +167,7 @@ public final class PermissionService {
             return;
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
-            applyAttachments(player);
+            SchedulerCompat.runOnEntity(plugin, player, () -> applyAttachments(player));
         }
     }
 
@@ -314,7 +315,7 @@ public final class PermissionService {
     public void shutdown() {
         unregisterVaultBridge();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            removeAttachments(player);
+            SchedulerCompat.runOnEntity(plugin, player, () -> removeAttachments(player));
         }
         attachments.clear();
     }

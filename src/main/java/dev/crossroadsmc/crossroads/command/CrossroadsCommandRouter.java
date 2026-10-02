@@ -14,6 +14,7 @@ import dev.crossroadsmc.crossroads.service.EconomyService;
 import dev.crossroadsmc.crossroads.util.Chat;
 import dev.crossroadsmc.crossroads.util.DurationParser;
 import dev.crossroadsmc.crossroads.util.LocationFormatter;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
@@ -285,9 +287,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        if (teleport(player, event.getDestination(), "travel.home.teleported", "%home%", scopedName.raw())) {
-            applyCooldown(player, "home");
-        }
+        teleport(player, event.getDestination(), "travel.home.teleported", "%home%", scopedName.raw())
+            .thenAccept(success -> {
+                if (success) {
+                    applyCooldown(player, "home");
+                }
+            });
         return true;
     }
 
@@ -391,9 +396,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        if (teleport(player, destination, "travel.warp.teleported", "%warp%", scopedName.raw())) {
-            applyCooldown(player, "warp");
-        }
+        teleport(player, destination, "travel.warp.teleported", "%warp%", scopedName.raw())
+            .thenAccept(success -> {
+                if (success) {
+                    applyCooldown(player, "warp");
+                }
+            });
         return true;
     }
 
@@ -477,9 +485,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        if (teleport(player, location, "travel.spawn.teleported")) {
-            applyCooldown(player, "spawn");
-        }
+        teleport(player, location, "travel.spawn.teleported")
+            .thenAccept(success -> {
+                if (success) {
+                    applyCooldown(player, "spawn");
+                }
+            });
         return true;
     }
 
@@ -522,9 +533,12 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             return true;
         }
 
-        if (teleport(player, location, "travel.back.teleported")) {
-            applyCooldown(player, "back");
-        }
+        teleport(player, location, "travel.back.teleported")
+            .thenAccept(success -> {
+                if (success) {
+                    applyCooldown(player, "back");
+                }
+            });
         return true;
     }
 
@@ -746,13 +760,23 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         }
 
         if (request.isHereRequest()) {
-            if (teleport(player, requester.getLocation(), "travel.tpa.accepted-target")) {
-                msg(requester, "travel.tpa.accepted-requester", "%player%", player.getName());
-            }
+            SchedulerCompat.runOnEntity(plugin, requester, () -> {
+                Location requesterLocation = requester.getLocation();
+                SchedulerCompat.runOnEntity(plugin, player, () -> teleport(player, requesterLocation, "travel.tpa.accepted-target")
+                    .thenAccept(success -> {
+                        if (success) {
+                            msg(requester, "travel.tpa.accepted-requester", "%player%", player.getName());
+                        }
+                    }));
+            });
         } else {
-            if (teleport(requester, player.getLocation(), "travel.tpa.accepted-requester", "%player%", player.getName())) {
-                msg(player, "travel.tpa.accepted-target");
-            }
+            Location targetLocation = player.getLocation();
+            SchedulerCompat.runOnEntity(plugin, requester, () -> teleport(requester, targetLocation, "travel.tpa.accepted-requester", "%player%", player.getName())
+                .thenAccept(success -> {
+                    if (success) {
+                        msg(player, "travel.tpa.accepted-target");
+                    }
+                }));
         }
         return true;
     }
@@ -812,28 +836,54 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         int maxRadius = Math.max(minRadius + 1, plugin.getConfig().getInt("rtp.max-radius", 1500));
         int attempts = Math.max(1, plugin.getConfig().getInt("rtp.max-attempts", 12));
 
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            int x = randomSigned(minRadius, maxRadius);
-            int z = randomSigned(minRadius, maxRadius);
-            int y = world.getHighestBlockYAt(x, z) + 1;
-            Location target = new Location(world, x + 0.5D, Math.max(64, y), z + 0.5D);
-            Block feet = target.getBlock();
-            Block below = target.clone().add(0, -1, 0).getBlock();
-            if (feet.getType().isSolid() || below.getType() == Material.LAVA || below.getType() == Material.WATER || below.getType() == Material.AIR) {
-                continue;
-            }
-            if (plugin.getProtectionCompatibilityService().shouldAvoidProtectedRtp()
-                && plugin.getProtectionCompatibilityService().isProtected(target)) {
-                continue;
-            }
-            if (teleport(player, target, "travel.rtp.teleported")) {
-                applyCooldown(player, "rtp");
-                return true;
-            }
+        attemptRandomTeleport(player, world, minRadius, maxRadius, attempts);
+        return true;
+    }
+
+    private void attemptRandomTeleport(Player player, World world, int minRadius, int maxRadius, int attemptsLeft) {
+        if (!player.isOnline()) {
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            msg(player, "travel.rtp.failed");
+            return;
         }
 
-        msg(player, "travel.rtp.failed");
-        return true;
+        int x = randomSigned(minRadius, maxRadius);
+        int z = randomSigned(minRadius, maxRadius);
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+
+        SchedulerCompat.getChunkAtAsync(plugin, world, chunkX, chunkZ)
+            .whenComplete((chunk, throwable) -> {
+                if (throwable != null) {
+                    attemptRandomTeleport(player, world, minRadius, maxRadius, attemptsLeft - 1);
+                    return;
+                }
+                SchedulerCompat.runOnRegion(plugin, world, chunkX, chunkZ, () -> {
+                    int y = world.getHighestBlockYAt(x, z) + 1;
+                    Location target = new Location(world, x + 0.5D, Math.max(64, y), z + 0.5D);
+                    Block feet = target.getBlock();
+                    Block below = target.clone().add(0, -1, 0).getBlock();
+                    boolean unsafe = feet.getType().isSolid()
+                        || below.getType() == Material.LAVA
+                        || below.getType() == Material.WATER
+                        || below.getType() == Material.AIR;
+                    if (unsafe || (plugin.getProtectionCompatibilityService().shouldAvoidProtectedRtp()
+                        && plugin.getProtectionCompatibilityService().isProtected(target))) {
+                        attemptRandomTeleport(player, world, minRadius, maxRadius, attemptsLeft - 1);
+                        return;
+                    }
+                    teleport(player, target, "travel.rtp.teleported")
+                        .thenAccept(success -> {
+                            if (success) {
+                                applyCooldown(player, "rtp");
+                            } else {
+                                attemptRandomTeleport(player, world, minRadius, maxRadius, attemptsLeft - 1);
+                            }
+                        });
+                });
+            });
     }
 
     private boolean handleFly(CommandSender sender) {
@@ -890,7 +940,22 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             msg(player, "common.player-not-online");
             return true;
         }
-        player.openInventory(target.getInventory());
+        if (SchedulerCompat.isFolia()) {
+            SchedulerCompat.runOnEntity(plugin, target, () -> {
+                ItemStack[] snapshot = cloneContents(target.getInventory().getContents());
+                int size = Math.min(54, Math.max(9, ((snapshot.length + 8) / 9) * 9));
+                String title = target.getName() + "'s Inventory";
+                SchedulerCompat.runOnEntity(plugin, player, () -> {
+                    Inventory view = Bukkit.createInventory(target, size, title);
+                    if (snapshot.length <= view.getSize()) {
+                        view.setContents(snapshot);
+                    }
+                    player.openInventory(view);
+                });
+            });
+        } else {
+            player.openInventory(target.getInventory());
+        }
         msg(player, "staff.invsee.inspecting", "%player%", target.getName());
         return true;
     }
@@ -909,11 +974,31 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             msg(player, "common.player-not-online");
             return true;
         }
-        Inventory inventory = Bukkit.createInventory(target, target.getEnderChest().getSize(), target.getName() + "'s Ender Chest");
-        inventory.setContents(target.getEnderChest().getContents());
-        player.openInventory(inventory);
+        if (SchedulerCompat.isFolia()) {
+            SchedulerCompat.runOnEntity(plugin, target, () -> {
+                int size = target.getEnderChest().getSize();
+                ItemStack[] snapshot = cloneContents(target.getEnderChest().getContents());
+                SchedulerCompat.runOnEntity(plugin, player, () -> {
+                    Inventory inventory = Bukkit.createInventory(target, size, target.getName() + "'s Ender Chest");
+                    inventory.setContents(snapshot);
+                    player.openInventory(inventory);
+                });
+            });
+        } else {
+            Inventory inventory = Bukkit.createInventory(target, target.getEnderChest().getSize(), target.getName() + "'s Ender Chest");
+            inventory.setContents(target.getEnderChest().getContents());
+            player.openInventory(inventory);
+        }
         msg(player, "staff.endersee.inspecting", "%player%", target.getName());
         return true;
+    }
+
+    private static ItemStack[] cloneContents(ItemStack[] contents) {
+        ItemStack[] snapshot = new ItemStack[contents.length];
+        for (int index = 0; index < contents.length; index++) {
+            snapshot[index] = contents[index] == null ? null : contents[index].clone();
+        }
+        return snapshot;
     }
 
     private boolean handleFreeze(CommandSender sender, String[] args) {
@@ -1319,7 +1404,8 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
             leftovers.values().forEach(leftover -> Objects.requireNonNull(player.getWorld()).dropItemNaturally(player.getLocation(), leftover));
         }
         for (String rawCommand : kit.getCommands()) {
-            plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), rawCommand.replace("%player%", player.getName()));
+            String parsed = rawCommand.replace("%player%", player.getName());
+            SchedulerCompat.runGlobal(plugin, () -> plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), parsed));
         }
         if (kit.getCooldownSeconds() > 0L) {
             data.setKitCooldown(profile + ":" + kit.getKey(), now + (kit.getCooldownSeconds() * 1000L));
@@ -1877,12 +1963,22 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         String world = target.isOnline() && target.getPlayer() != null
             ? target.getPlayer().getWorld().getName()
             : "";
-        boolean value = plugin.getPermissionService().hasPermission(data, args[2], world);
+        boolean stored = plugin.getPermissionService().hasPermission(data, args[2], world);
+        String targetName = target.getName() == null ? args[1] : target.getName();
+        if (target.isOnline() && target.getPlayer() != null && SchedulerCompat.isFolia()) {
+            Player online = target.getPlayer();
+            SchedulerCompat.runOnEntity(plugin, online, () -> msg(sender, "permissions.check.result",
+                "%player%", targetName,
+                "%permission%", args[2],
+                "%value%", String.valueOf(online.hasPermission(args[2]))));
+            return true;
+        }
+        boolean value = stored;
         if (target.isOnline() && target.getPlayer() != null) {
             value = target.getPlayer().hasPermission(args[2]);
         }
         msg(sender, "permissions.check.result",
-            "%player%", target.getName() == null ? args[1] : target.getName(),
+            "%player%", targetName,
             "%permission%", args[2],
             "%value%", String.valueOf(value));
         return true;
@@ -1904,7 +2000,8 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
 
     private void refreshPermissions(OfflinePlayer target) {
         if (target.isOnline() && target.getPlayer() != null) {
-            plugin.getPermissionService().applyAttachments(target.getPlayer());
+            Player online = target.getPlayer();
+            SchedulerCompat.runOnEntity(plugin, online, () -> plugin.getPermissionService().applyAttachments(online));
         }
     }
 
@@ -1962,13 +2059,15 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 msg(sender, "admin.backup.usage");
                 return true;
             }
-            try {
-                java.io.File backup = plugin.getBackupService().createBackup("manual");
-                msg(sender, "admin.backup.created", "%file%", backup.getName());
-            } catch (Exception exception) {
-                msg(sender, "admin.backup.failed", "%reason%", exception.getMessage() == null ? "unknown" : exception.getMessage());
-                plugin.getLogger().warning("Manual backup failed: " + exception.getMessage());
-            }
+            SchedulerCompat.runAsync(plugin, () -> {
+                try {
+                    java.io.File backup = plugin.getBackupService().createBackup("manual");
+                    msg(sender, "admin.backup.created", "%file%", backup.getName());
+                } catch (Exception exception) {
+                    msg(sender, "admin.backup.failed", "%reason%", exception.getMessage() == null ? "unknown" : exception.getMessage());
+                    plugin.getLogger().warning("Manual backup failed: " + exception.getMessage());
+                }
+            });
             return true;
         }
 
@@ -1977,13 +2076,15 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
                 msg(sender, "admin.import.usage");
                 return true;
             }
-            var result = plugin.getImportService().importEssentials();
-            if (!result.found()) {
-                msg(sender, "admin.import.failed", "%reason%", "No Essentials folder was found to import.");
-                return true;
-            }
-            String summary = result.homes() + " homes, " + result.warps() + " warps, " + result.nicknames() + " nicknames";
-            msg(sender, "admin.import.done", "%summary%", summary);
+            SchedulerCompat.runAsync(plugin, () -> {
+                var result = plugin.getImportService().importEssentials();
+                if (!result.found()) {
+                    msg(sender, "admin.import.failed", "%reason%", "No Essentials folder was found to import.");
+                    return;
+                }
+                String summary = result.homes() + " homes, " + result.warps() + " warps, " + result.nicknames() + " nicknames";
+                msg(sender, "admin.import.done", "%summary%", summary);
+            });
             return true;
         }
 
@@ -1991,16 +2092,20 @@ public final class CrossroadsCommandRouter implements CommandExecutor, TabComple
         return true;
     }
 
-    private boolean teleport(Player player, Location destination, String successKey, String... replacements) {
+    private CompletableFuture<Boolean> teleport(Player player, Location destination, String successKey, String... replacements) {
         String protectionFailure = plugin.getProtectionCompatibilityService().checkTeleportAccess(player, destination);
         if (protectionFailure != null) {
             sendFailure(player, protectionFailure);
-            return false;
+            return CompletableFuture.completedFuture(false);
         }
         plugin.getBackService().record(player, player.getLocation());
-        player.teleport(destination);
-        msg(player, successKey, replacements);
-        return true;
+        return SchedulerCompat.teleportAsync(plugin, player, destination)
+            .thenApply(success -> {
+                if (success) {
+                    msg(player, successKey, replacements);
+                }
+                return success;
+            });
     }
 
     private Player requirePlayer(CommandSender sender) {

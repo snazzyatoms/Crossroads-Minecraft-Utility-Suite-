@@ -33,13 +33,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import dev.crossroadsmc.crossroads.storage.StorageManager;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 public final class CrossroadsPlugin extends JavaPlugin {
     private StorageManager storageManager;
@@ -65,7 +65,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
     private PermissionService permissionService;
     private MenuService menuService;
     private ImportService importService;
-    private BukkitTask autosaveTask;
+    private SchedulerCompat.ScheduledHandle autosaveTask;
 
     @Override
     public void onEnable() {
@@ -338,8 +338,7 @@ public final class CrossroadsPlugin extends JavaPlugin {
         }
 
         long intervalSeconds = Math.max(30L, getConfig().getLong("persistence.autosave.interval-seconds", 120L));
-        long intervalTicks = intervalSeconds * 20L;
-        autosaveTask = getServer().getScheduler().runTaskTimer(this, this::flushPersistentState, intervalTicks, intervalTicks);
+        autosaveTask = SchedulerCompat.runAtFixedRateAsync(this, this::flushPersistentState, intervalSeconds, intervalSeconds);
     }
 
     private void flushPersistentState() {

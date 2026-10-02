@@ -3,8 +3,8 @@ package dev.crossroadsmc.crossroads.listener;
 import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -29,7 +29,7 @@ public final class ModerationListener implements Listener {
         if (!data.isMuted()) {
             if (data.isShadowMuted()) {
                 event.setCancelled(true);
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                SchedulerCompat.runGlobal(plugin, () -> {
                     plugin.getLanguageService().send(event.getPlayer(), "moderation.shadowmute.echo",
                         "%message%", event.getMessage());
                     plugin.getServer().getOnlinePlayers().stream()
@@ -44,7 +44,7 @@ public final class ModerationListener implements Listener {
 
         event.setCancelled(true);
         long remaining = Math.max(1L, (data.getMutedUntil() - System.currentTimeMillis()) / 1000L);
-        Bukkit.getScheduler().runTask(plugin, () -> plugin.getLanguageService().send(event.getPlayer(),
+        SchedulerCompat.runGlobal(plugin, () -> plugin.getLanguageService().send(event.getPlayer(),
             "moderation.chat.muted-reason",
             "%duration%", TimeFormatter.duration(remaining),
             "%reason%", data.getMuteReason()));

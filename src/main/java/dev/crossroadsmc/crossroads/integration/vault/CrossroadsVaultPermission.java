@@ -4,6 +4,7 @@ import dev.crossroadsmc.crossroads.model.PermissionGroup;
 import dev.crossroadsmc.crossroads.model.PermissionNode;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.service.PermissionService;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import java.util.Locale;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
@@ -59,7 +60,7 @@ public final class CrossroadsVaultPermission extends Permission {
             permissions.getServerName()
         ));
         permissions.getPlugin().getPlayerDataService().save(online);
-        permissions.applyAttachments(online);
+        SchedulerCompat.runOnEntity(permissions.getPlugin(), online, () -> permissions.applyAttachments(online));
         return true;
     }
 
@@ -77,7 +78,7 @@ public final class CrossroadsVaultPermission extends Permission {
         );
         if (removed) {
             permissions.getPlugin().getPlayerDataService().save(online);
-            permissions.applyAttachments(online);
+            SchedulerCompat.runOnEntity(permissions.getPlugin(), online, () -> permissions.applyAttachments(online));
         }
         return removed;
     }
@@ -155,7 +156,7 @@ public final class CrossroadsVaultPermission extends Permission {
             data.setPrimaryGroup(group);
         }
         permissions.getPlugin().getPlayerDataService().save(online);
-        permissions.applyAttachments(online);
+        SchedulerCompat.runOnEntity(permissions.getPlugin(), online, () -> permissions.applyAttachments(online));
         return added;
     }
 
@@ -173,7 +174,7 @@ public final class CrossroadsVaultPermission extends Permission {
                 data.addPermissionGroup(permissions.getDefaultGroup());
             }
             permissions.getPlugin().getPlayerDataService().save(online);
-            permissions.applyAttachments(online);
+            SchedulerCompat.runOnEntity(permissions.getPlugin(), online, () -> permissions.applyAttachments(online));
         }
         return removed;
     }

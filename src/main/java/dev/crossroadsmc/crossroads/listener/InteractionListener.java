@@ -7,6 +7,7 @@ import dev.crossroadsmc.crossroads.model.SavedLocation;
 import dev.crossroadsmc.crossroads.service.MenuService;
 import dev.crossroadsmc.crossroads.service.MenuService.CrossroadsMenuHolder;
 import dev.crossroadsmc.crossroads.util.Chat;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import java.util.Locale;
 import java.util.Map;
@@ -56,8 +57,12 @@ public final class InteractionListener implements Listener {
                 return;
             }
             plugin.getBackService().record(player, player.getLocation());
-            player.teleport(warp.toLocation());
-            plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", entry);
+            SchedulerCompat.teleportAsync(plugin, player, warp.toLocation())
+                .thenAccept(success -> {
+                    if (success) {
+                        plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", entry);
+                    }
+                });
             player.closeInventory();
             return;
         }
@@ -96,7 +101,8 @@ public final class InteractionListener implements Listener {
                 leftovers.values().forEach(leftover -> Objects.requireNonNull(player.getWorld()).dropItemNaturally(player.getLocation(), leftover));
             }
             for (String command : kit.getCommands()) {
-                plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), command.replace("%player%", player.getName()));
+                String parsed = command.replace("%player%", player.getName());
+                SchedulerCompat.runGlobal(plugin, () -> plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), parsed));
             }
             if (kit.getCooldownSeconds() > 0L) {
                 data.setKitCooldown(profile + ":" + kit.getKey(), now + (kit.getCooldownSeconds() * 1000L));
@@ -154,8 +160,12 @@ public final class InteractionListener implements Listener {
                     return;
                 }
                 plugin.getBackService().record(player, player.getLocation());
-                player.teleport(warp.toLocation());
-                plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", value);
+                SchedulerCompat.teleportAsync(plugin, player, warp.toLocation())
+                    .thenAccept(success -> {
+                        if (success) {
+                            plugin.getLanguageService().send(player, "travel.warp.teleported", "%warp%", value);
+                        }
+                    });
             }
             case "kit" -> plugin.getMenuService().openKitMenu(player);
             case "spawn" -> {
@@ -166,8 +176,12 @@ public final class InteractionListener implements Listener {
                     return;
                 }
                 plugin.getBackService().record(player, player.getLocation());
-                player.teleport(spawn.toLocation());
-                plugin.getLanguageService().send(player, "travel.spawn.teleported");
+                SchedulerCompat.teleportAsync(plugin, player, spawn.toLocation())
+                    .thenAccept(success -> {
+                        if (success) {
+                            plugin.getLanguageService().send(player, "travel.spawn.teleported");
+                        }
+                    });
             }
             case "rtp" -> player.performCommand("rtp");
             case "motd" -> player.performCommand("motd");

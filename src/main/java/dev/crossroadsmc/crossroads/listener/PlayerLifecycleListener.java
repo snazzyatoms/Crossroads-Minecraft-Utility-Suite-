@@ -4,6 +4,7 @@ import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
 import dev.crossroadsmc.crossroads.util.Chat;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import dev.crossroadsmc.crossroads.util.TimeFormatter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -66,8 +67,12 @@ public final class PlayerLifecycleListener implements Listener {
             SavedLocation jail = plugin.getModerationService().getJailLocation(player.getUniqueId());
             Location jailLocation = jail == null ? null : jail.toLocation();
             if (jailLocation != null) {
-                player.teleport(jailLocation);
-                plugin.getLanguageService().send(player, "moderation.jail.active");
+                SchedulerCompat.teleportAsync(plugin, player, jailLocation)
+                    .thenAccept(success -> {
+                        if (success) {
+                            plugin.getLanguageService().send(player, "moderation.jail.active");
+                        }
+                    });
                 return;
             }
         }
@@ -80,7 +85,7 @@ public final class PlayerLifecycleListener implements Listener {
             if (spawn != null) {
                 Location location = spawn.toLocation();
                 if (location != null) {
-                    player.teleport(location);
+                    SchedulerCompat.teleportAsync(plugin, player, location);
                 }
             }
         }

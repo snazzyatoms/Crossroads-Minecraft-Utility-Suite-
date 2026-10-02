@@ -4,6 +4,7 @@ import dev.crossroadsmc.crossroads.CrossroadsPlugin;
 import dev.crossroadsmc.crossroads.model.ModerationLogEntry;
 import dev.crossroadsmc.crossroads.model.PlayerData;
 import dev.crossroadsmc.crossroads.model.SavedLocation;
+import dev.crossroadsmc.crossroads.util.SchedulerCompat;
 import java.util.List;
 import java.util.UUID;
 import org.bukkit.BanList;
@@ -88,7 +89,7 @@ public final class ModerationService {
 
     public void kick(CommandSender actor, Player target, String reason) {
         log(actor, target, "KICK", reason);
-        target.kickPlayer(reason);
+        SchedulerCompat.runOnEntity(plugin, target, () -> target.kickPlayer(reason));
     }
 
     public void shadowMute(CommandSender actor, OfflinePlayer target, boolean enabled) {
@@ -109,11 +110,13 @@ public final class ModerationService {
         if (target.getName() != null) {
             data.setLastKnownName(target.getName());
             java.util.Date expires = until == Long.MAX_VALUE ? null : new java.util.Date(until);
-            Bukkit.getBanList(BanList.Type.NAME).addBan(target.getName(), reason, expires, actor.getName());
+            String targetName = target.getName();
+            SchedulerCompat.runGlobal(plugin, () -> Bukkit.getBanList(BanList.Type.NAME).addBan(targetName, reason, expires, actor.getName()));
         }
         playerDataService.save(target.getUniqueId());
         if (target.isOnline() && target.getPlayer() != null) {
-            target.getPlayer().kickPlayer(reason);
+            Player onlineTarget = target.getPlayer();
+            SchedulerCompat.runOnEntity(plugin, onlineTarget, () -> onlineTarget.kickPlayer(reason));
         }
         log(actor, target, "TEMPBAN", reason);
     }
@@ -124,7 +127,8 @@ public final class ModerationService {
         data.setBanReason("");
         if (target.getName() != null) {
             data.setLastKnownName(target.getName());
-            Bukkit.getBanList(BanList.Type.NAME).pardon(target.getName());
+            String targetName = target.getName();
+            SchedulerCompat.runGlobal(plugin, () -> Bukkit.getBanList(BanList.Type.NAME).pardon(targetName));
         }
         playerDataService.save(target.getUniqueId());
         log(actor, target, "UNBAN", "Ban cleared");
@@ -142,7 +146,7 @@ public final class ModerationService {
         data.setLastKnownName(target.getName());
         playerDataService.save(target);
         if (jail.toLocation() != null) {
-            target.teleport(jail.toLocation());
+            SchedulerCompat.teleportAsync(plugin, target, jail.toLocation());
         }
         log(actor, target, "JAIL", jailName + " - " + reason);
     }
